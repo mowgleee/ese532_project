@@ -55,6 +55,7 @@ int main(int argc, char* argv[]) {
 	handle_input(argc, argv, &blocksize);
 
 	file = (unsigned char*) malloc(sizeof(unsigned char) * 70000000);
+	
 	if (file == NULL) {
 		printf("help\n");
 	}
