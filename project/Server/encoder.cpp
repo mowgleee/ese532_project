@@ -13,6 +13,8 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include "stopwatch.h"
+#include <vector>
+#include <bits/stdc++.h>
 
 #include <math.h>
 
@@ -31,6 +33,84 @@
 int offset = 0;
 unsigned char* file;
 
+typedef struct unique_bounds
+{
+	unsigned int lower_bound;
+	unsigned int upper_bound;
+}unique_bounds;
+
+std::vector<int> lzw_encoding(unsigned char* s1, unsigned int length)
+{
+    std::cout << "Encoding\n";
+    std::unordered_map<std::string, int> table;
+    for (int i = 0; i <= 255; i++) {
+        std::string ch = "";
+        ch += char(i);
+        table[ch] = i;
+    }
+ 
+    std::string p = "", c = "";
+    p += s1[0];
+    int code = 256;
+    std::vector<int> output_code;
+    std::cout << "String\tOutput_Code\tAddition\n";
+    for (unsigned int i = 0; i < length; i++) {
+        if (i != length - 1)
+            c += s1[i + 1];
+        if (table.find(p + c) != table.end()) {
+            p = p + c;
+        }
+        else {
+            std::cout << p << "\t" << table[p] << "\t\t"
+                 << p + c << "\t" << code << std::endl;
+            output_code.push_back(table[p]);
+            table[p + c] = code;
+            code++;
+            p = c;
+        }
+        c = "";
+    }
+    std::cout << p << "\t" << table[p] << std::endl;
+    output_code.push_back(table[p]);
+
+	memcpy(&file[offset], &output_code, sizeof(output_code));
+	offset += sizeof(output_code);
+
+    return output_code;
+}
+ 
+// void lzw_decoding(std::vector<int> op)
+// {
+//     std::cout << "\nDecoding\n";
+//     std::unordered_map<int, std::string> table;
+//     for (int i = 0; i <= 255; i++) {
+//         std::string ch = "";
+//         ch += char(i);
+//         table[i] = ch;
+//     }
+//     int old = op[0], n;
+//     std::string s = table[old];
+//     std::string c = "";
+//     c += s[0];
+//     std::cout << s;
+//     int count = 256;
+//     for (int i = 0; i < op.size() - 1; i++) {
+//         n = op[i + 1];
+//         if (table.find(n) == table.end()) {
+//             s = table[old];
+//             s = s + c;
+//         }
+//         else {
+//             s = table[n];
+//         }
+//         cout << s;
+//         c = "";
+//         c += s[0];
+//         table[count] = table[old] + c;
+//         count++;
+//         old = n;
+//     }
+// }
 
 uint64_t hash_func(unsigned char *input, unsigned int pos)
 {
@@ -103,16 +183,45 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void compress(unsigned char *buffer, int length)
+bool chunk_matching(uint64_t sha_chunk, unsigned int lower_bound, unsigned int upper_bound, std::unordered_map<uint64_t, unique_bounds> chunks_map)
+{
+	unique_bounds curr_ub, ub;
+	curr_ub.lower_bound = lower_bound;
+	curr_ub.upper_bound = upper_bound;
+
+	if (chunks_map.find(sha_chunk) == chunks_map.end())
+	{
+		chunks_map[sha_chunk] = curr_ub;
+		return true;
+	}
+	else
+	{
+		// Save chunk number later and make header
+		ub = chunks_map[sha_chunk];
+		memcpy(&file[offset], &ub, sizeof(ub));
+		offset += sizeof(ub);
+		return false;
+	}
+}
+
+void compress(unsigned char *buffer, unsigned int length, std::unordered_map<uint64_t, unique_bounds> chunks_map)
 {
 	unsigned int lower_bound = HEADER;
 	unsigned int upper_bound = 0;
 	uint64_t sha_chunk = 0;
+	bool is_unique;
 
 	while(upper_bound < length)
 	{
 		upper_bound = cdc_eff(&buffer[lower_bound], lower_bound, length);
 		sha_chunk = sha_dummy(&buffer[HEADER], lower_bound, upper_bound);
+		is_unique = chunk_matching(sha_chunk, lower_bound, upper_bound, chunks_map);
+		
+		if (is_unique)
+		{
+			lzw_encoding(&buffer[lower_bound], upper_bound - lower_bound);
+		}
+
 		// std::cout<<sha_chunk<<"\n";
 		lower_bound = upper_bound;
 	}
@@ -123,7 +232,7 @@ int main(int argc, char* argv[]) {
 	unsigned char* input[NUM_PACKETS];
 	int writer = 0;
 	int done = 0;
-	int length = 0;
+	unsigned int length = 0;
 	int count = 0;
 	ESE532_Server server;
 
@@ -171,13 +280,20 @@ int main(int argc, char* argv[]) {
 	// std::vector<unsigned int> boundaries;
 	// std::vector<uint64_t> sha_vector;
 
-	compress(&buffer[HEADER], length);
+	// std::vector<int> output_code;
+	// output_code.push_back(compress(&buffer[HEADER], length));		// Vector of vector error******
+
+
+	std::unordered_map<uint64_t, unique_bounds> chunks_map;
+
+	compress(&buffer[HEADER], length, chunks_map);
+	
 	// chunk_match();
 	// lzw_encode();
 
-	memcpy(&file[offset], &buffer[HEADER], length);
+	// memcpy(&file[offset], output_code, output_code.size());
 
-	offset += length;
+	// offset += output_code.size();
 	writer++;
 
 	//last message
@@ -200,12 +316,12 @@ int main(int argc, char* argv[]) {
 		done = buffer[1] & DONE_BIT_L;
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
-		//printf("length: %d offset %d\n",length,offset);
+		// printf("length: %d offset %d\n",length,offset);
 		// cdc_eff(&buffer[HEADER], length);
-		// compress(&buffer[HEADER], length);
-		memcpy(&file[offset], &buffer[HEADER], length);
+		compress(&buffer[HEADER], length, chunks_map);
+		// memcpy(&file[offset], &buffer[HEADER], length);
 
-		offset += length;
+		// offset += length;
 		writer++;
 	}
 
