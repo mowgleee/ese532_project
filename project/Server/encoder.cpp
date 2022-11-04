@@ -26,6 +26,8 @@
 #define MODULUS 256
 #define TARGET 0
 
+#define MAX_CHUNK_SIZE 8*1024
+
 int offset = 0;
 unsigned char* file;
 
@@ -42,38 +44,46 @@ uint64_t hash_func(unsigned char *input, unsigned int pos)
 
 }
 
-// uint64_t sha_dummy(unsigned char *start, unsigned int *end)
-// {
-// 	// put your hash function implementation here
-// 	uint64_t hash =0; 
-// 	for ( int i = start ; i<end ; i++)
-// 	{
-// 		hash += (input[i]) * (pow(PRIME,i+1)); 
-// 	}
-// 	return hash; 
+uint64_t sha_dummy(unsigned char* buff, unsigned int lower_bound, unsigned int upper_bound)
+{
+	// put your hash function implementation here
+	uint64_t hash = 0;
+	hash=hash_func(&buff[lower_bound], upper_bound-lower_bound);
+	return hash; 
 
-// }
+}
 
-void cdc_eff(unsigned char *buff, unsigned int buff_size)
+unsigned int cdc_eff(unsigned char *buff, unsigned int lower_bound, unsigned int length)
 {
 
-	uint64_t hash = hash_func(buff,WIN_SIZE); 
+	uint64_t hash = hash_func(buff, WIN_SIZE);
+
+	// std::cout<<"Hash = "<<hash<<" lower_bound = "<<lower_bound<<std::endl;
 
 	if((hash % MODULUS) == TARGET)
 		{
-				printf( " %d \n\r", WIN_SIZE);
+				printf( " %d \t", lower_bound+1);
+				// boundaries.push_back(WIN_SIZE);
+				return lower_bound+1;
 		}
 
-	for (int i = WIN_SIZE +1 ; i < buff_size - WIN_SIZE ; i++)
+	for (int i = WIN_SIZE + 1; i < MAX_CHUNK_SIZE - WIN_SIZE; i++)
 	{
-		hash = (hash * PRIME - (buff[i-1])*pow(PRIME,WIN_SIZE+1) + (buff[i-1+WIN_SIZE]*PRIME));; 
+
+		if (i + lower_bound > length)
+		{
+			return length;
+		}
+
+		hash = (hash * PRIME - (buff[i - 1] * pow(PRIME, WIN_SIZE + 1)) + (buff[i - 1 + WIN_SIZE] * PRIME));
 
 		if((hash % MODULUS) == TARGET)
 		{
-				printf( " %d \n\r", i);
+			std::cout<<i+lower_bound<<"\t";
+			return i + lower_bound;
 		}
 	}
-
+	return MAX_CHUNK_SIZE + lower_bound;
 }
 
 void handle_input(int argc, char* argv[], int* blocksize) {
@@ -90,6 +100,21 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 			printf("-%c without parameter\n", optopt);
 			break;
 		}
+	}
+}
+
+void compress(unsigned char *buffer, int length)
+{
+	unsigned int lower_bound = HEADER;
+	unsigned int upper_bound = 0;
+	uint64_t sha_chunk = 0;
+
+	while(upper_bound < length)
+	{
+		upper_bound = cdc_eff(&buffer[lower_bound], lower_bound, length);
+		sha_chunk = sha_dummy(&buffer[HEADER], lower_bound, upper_bound);
+		// std::cout<<sha_chunk<<"\n";
+		lower_bound = upper_bound;
 	}
 }
 
@@ -141,8 +166,12 @@ int main(int argc, char* argv[]) {
 
 	// we are just memcpy'ing here, but you should call your
 	// top function here.
-	cdc_eff(&buffer[HEADER], length);
-	// sha_dummy(chunk_start, chunk_end);
+
+	// unsigned int* boundaries= (unsigned int*) malloc(sizeof(unsigned int) * length);
+	// std::vector<unsigned int> boundaries;
+	// std::vector<uint64_t> sha_vector;
+
+	compress(&buffer[HEADER], length);
 	// chunk_match();
 	// lzw_encode();
 
@@ -172,7 +201,8 @@ int main(int argc, char* argv[]) {
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
 		//printf("length: %d offset %d\n",length,offset);
-		cdc_eff(&buffer[HEADER], length);
+		// cdc_eff(&buffer[HEADER], length);
+		// compress(&buffer[HEADER], length);
 		memcpy(&file[offset], &buffer[HEADER], length);
 
 		offset += length;
