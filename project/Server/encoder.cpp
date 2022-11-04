@@ -14,13 +14,58 @@
 #include <sys/mman.h>
 #include "stopwatch.h"
 
+#include <math.h>
+
 #define NUM_PACKETS 8
 #define pipe_depth 4
 #define DONE_BIT_L (1 << 7)
 #define DONE_BIT_H (1 << 15)
 
+#define WIN_SIZE 16
+#define PRIME 3
+#define MODULUS 256
+#define TARGET 0
+
 int offset = 0;
 unsigned char* file;
+
+
+uint64_t hash_func(unsigned char *input, unsigned int pos)
+{
+	// put your hash function implementation here
+	uint64_t hash =0; 
+	for ( int i = 0 ; i<WIN_SIZE ; i++)
+	{
+		hash += (input[pos + WIN_SIZE-1-i]) * (pow(PRIME,i+1)); 
+	}
+	return hash; 
+
+}
+
+uint64_t sha_dummy(unsigned char *input, unsigned int pos)
+{
+	// put your hash function implementation here
+	uint64_t hash =0; 
+	for ( int i = 0 ; i<WIN_SIZE ; i++)
+	{
+		hash += (input[pos + WIN_SIZE-1-i]) * (pow(PRIME,i+1)); 
+	}
+	return hash; 
+
+}
+
+void cdc_eff(unsigned char *buff, unsigned int buff_size)
+{
+	// put your cdc implementation here
+	for (int i = WIN_SIZE ; i < buff_size - WIN_SIZE ; i++)
+	{
+		if((( hash_func(buff,i) % MODULUS)) == TARGET)
+		{
+				printf( " %d \n\r", i);
+		}
+	}
+
+}
 
 void handle_input(int argc, char* argv[], int* blocksize) {
 	int x;
@@ -87,6 +132,7 @@ int main(int argc, char* argv[]) {
 
 	// we are just memcpy'ing here, but you should call your
 	// top function here.
+	cdc_eff(&buffer[HEADER], length);
 	memcpy(&file[offset], &buffer[HEADER], length);
 
 	offset += length;
@@ -113,6 +159,7 @@ int main(int argc, char* argv[]) {
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
 		//printf("length: %d offset %d\n",length,offset);
+		cdc_eff(&buffer[HEADER], length);
 		memcpy(&file[offset], &buffer[HEADER], length);
 
 		offset += length;

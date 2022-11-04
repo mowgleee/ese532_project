@@ -14,7 +14,7 @@
 #include <time.h>
 
 #define PORT 8091
-#define BLOCKSIZE 8192
+#define BLOCKSIZE 1024//8192
 #define MAX_BLOCKSIZE 16384
 #define HEADER 2
 #define DONE_BIT (1 << 7)
@@ -53,7 +53,7 @@ void handle_input(int argc, char* argv[], int* sleep_time, char** ip,
 int main(int argc, char* argv[]) {
 
 	char* file = strdup("vmlinuz.tar");
-	char* ip_addr = strdup("10.10.7.1");
+	char* ip_addr = strdup("169.254.195.120");
 	int sleep_time = 5;
 	int blocksize = BLOCKSIZE;
 	handle_input(argc, argv, &sleep_time, &ip_addr, &file, &blocksize);
