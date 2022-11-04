@@ -42,24 +42,33 @@ uint64_t hash_func(unsigned char *input, unsigned int pos)
 
 }
 
-uint64_t sha_dummy(unsigned char *input, unsigned int pos)
-{
-	// put your hash function implementation here
-	uint64_t hash =0; 
-	for ( int i = 0 ; i<WIN_SIZE ; i++)
-	{
-		hash += (input[pos + WIN_SIZE-1-i]) * (pow(PRIME,i+1)); 
-	}
-	return hash; 
+// uint64_t sha_dummy(unsigned char *start, unsigned int *end)
+// {
+// 	// put your hash function implementation here
+// 	uint64_t hash =0; 
+// 	for ( int i = start ; i<end ; i++)
+// 	{
+// 		hash += (input[i]) * (pow(PRIME,i+1)); 
+// 	}
+// 	return hash; 
 
-}
+// }
 
 void cdc_eff(unsigned char *buff, unsigned int buff_size)
 {
-	// put your cdc implementation here
-	for (int i = WIN_SIZE ; i < buff_size - WIN_SIZE ; i++)
+
+	uint64_t hash = hash_func(buff,WIN_SIZE); 
+
+	if((hash % MODULUS) == TARGET)
+		{
+				printf( " %d \n\r", WIN_SIZE);
+		}
+
+	for (int i = WIN_SIZE +1 ; i < buff_size - WIN_SIZE ; i++)
 	{
-		if((( hash_func(buff,i) % MODULUS)) == TARGET)
+		hash = (hash * PRIME - (buff[i-1])*pow(PRIME,WIN_SIZE+1) + (buff[i-1+WIN_SIZE]*PRIME));; 
+
+		if((hash % MODULUS) == TARGET)
 		{
 				printf( " %d \n\r", i);
 		}
@@ -133,6 +142,10 @@ int main(int argc, char* argv[]) {
 	// we are just memcpy'ing here, but you should call your
 	// top function here.
 	cdc_eff(&buffer[HEADER], length);
+	// sha_dummy(chunk_start, chunk_end);
+	// chunk_match();
+	// lzw_encode();
+
 	memcpy(&file[offset], &buffer[HEADER], length);
 
 	offset += length;
