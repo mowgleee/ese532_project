@@ -16,6 +16,9 @@
 #include <vector>
 #include <bits/stdc++.h>
 
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/sha3.h>
+
 #include <math.h>
 
 #define NUM_PACKETS 8
@@ -39,7 +42,7 @@ typedef struct chunk
 	unsigned int lower_bound = 0;
 	unsigned int upper_bound = 0;
 	unsigned int size = 0;
-	uint64_t sha;
+	std::string sha;
 	bool is_unique;
 	int num;
 }chunk;
@@ -107,7 +110,24 @@ uint64_t hash_func(unsigned char *input, unsigned int pos)
 
 void sha_dummy(unsigned char* buff, chunk *cptr)
 {
-	cptr->sha = hash_func(buff, cptr->size);
+	// cptr->sha = hash_func(buff, cptr->size);
+
+	char shaSum[SHA3_384_DIGEST_SIZE];
+    
+    wc_Sha3 sha3_384;
+    wc_InitSha3_384(&sha3_384, NULL, INVALID_DEVID);
+    wc_Sha3_384_Update(&sha3_384, (const unsigned char*)buff, cptr->size/*strlen(message)*/);
+    wc_Sha3_384_Final(&sha3_384, (unsigned char*)shaSum);
+
+	cptr->sha = std::string(shaSum);
+
+	// return;
+
+    // for(int x = 0; x < SHA3_384_DIGEST_SIZE; x++)
+    // {
+    //     printf("%x",shaSum[x]);
+    // }
+
 }
 
 void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, unsigned int length)
@@ -166,7 +186,7 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> *chunks_map, unsigned int* unique_chunks)
+void chunk_matching(chunk *cptr, std::unordered_map<std::string, unsigned int> *chunks_map, unsigned int* unique_chunks)
 {
 
 	unsigned int chunk_header=0;
@@ -199,7 +219,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> *chu
 	}
 }
 
-void compress(unsigned char *buffer, unsigned int length, std::unordered_map<uint64_t, unsigned int> *chunks_map, unsigned int* unique_chunks)
+void compress(unsigned char *buffer, unsigned int length, std::unordered_map<std::string, unsigned int> *chunks_map, unsigned int* unique_chunks)
 {
 	/*
 	buffer: 	pointer to input data (one packet)
@@ -294,7 +314,7 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 
-	std::unordered_map<uint64_t, unsigned int> chunks_map;
+	std::unordered_map<std::string, unsigned int> chunks_map;
 	unsigned int unique_chunks = 0;
 
 	compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
