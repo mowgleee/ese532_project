@@ -166,17 +166,17 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chunks_map, unsigned int* unique_chunks)
+void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> *chunks_map, unsigned int* unique_chunks)
 {
 
 	unsigned int chunk_header=0;
 
-	if (chunks_map.find(cptr->sha) == chunks_map.end())
+	if (chunks_map->find(cptr->sha) == chunks_map->end())
 	{
 		// Condition if chunk is unique
 
 		cptr->num = *unique_chunks;
-		chunks_map[cptr->sha] = cptr->num;
+		(*chunks_map)[cptr->sha] = cptr->num;
 		cptr->is_unique = true;
 		*unique_chunks= *unique_chunks + 1;
 		return;
@@ -187,7 +187,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chun
 		// Condition if chunk is duplicate
 
 		// Creating the header for a duplicate chunk with LSB 1
-		chunk_header = (chunk_header | 1) | (chunks_map[cptr->sha] << 1);
+		chunk_header = (chunk_header | 1) | ((*chunks_map)[cptr->sha] << 1);
 		std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
 
 		memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
@@ -199,7 +199,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chun
 	}
 }
 
-void compress(unsigned char *buffer, unsigned int length, std::unordered_map<uint64_t, unsigned int> chunks_map, unsigned int* unique_chunks)
+void compress(unsigned char *buffer, unsigned int length, std::unordered_map<uint64_t, unsigned int> *chunks_map, unsigned int* unique_chunks)
 {
 	/*
 	buffer: 	pointer to input data (one packet)
@@ -297,7 +297,7 @@ int main(int argc, char* argv[]) {
 	std::unordered_map<uint64_t, unsigned int> chunks_map;
 	unsigned int unique_chunks = 0;
 
-	compress(&buffer[HEADER], length, chunks_map, &unique_chunks);
+	compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
 	
 	// chunk_match();
 	// lzw_encode();
@@ -329,7 +329,7 @@ int main(int argc, char* argv[]) {
 		length &= ~DONE_BIT_H;
 		// printf("length: %d offset %d\n",length,offset);
 		
-		compress(&buffer[HEADER], length, chunks_map, &unique_chunks);
+		compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
 
 		// memcpy(&file[offset], &buffer[HEADER], length);
 		// offset += length;
