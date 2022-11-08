@@ -82,14 +82,14 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
     output_code.push_back(table[p]);
 
 	// Creating header for unique chunk with LSB 0
-	chunk_header = (chunk_header & 0) | (sizeof(output_code) << 1);
+	chunk_header = (chunk_header & 0) | (output_code.size() << 1);
 	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 
 	memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
 	offset += sizeof(unsigned int);
 
-	memcpy(&file[offset], &output_code, sizeof(output_code));
-	offset += sizeof(output_code);
+	memcpy(&file[offset], &output_code, output_code.size());
+	offset += output_code.size();
 
     return output_code;
 }
