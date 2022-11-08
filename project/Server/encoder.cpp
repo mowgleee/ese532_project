@@ -36,9 +36,9 @@ unsigned char* file;
 // Structure to store all information about a chunk
 typedef struct chunk
 {
-	unsigned int lower_bound;
-	unsigned int upper_bound;
-	unsigned int size = upper_bound - lower_bound;
+	unsigned int lower_bound = 0;
+	unsigned int upper_bound = 0;
+	unsigned int size = 0;
 	uint64_t sha;
 	bool is_unique;
 	int num;
@@ -47,9 +47,9 @@ typedef struct chunk
 std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
 {
 	unsigned int length = cptr->size;
-	unsigned int chunk_header;
+	unsigned int chunk_header=0;
 
-    std::cout << "Encoding\n";
+    // std::cout << "Encoding\n";
     std::unordered_map<std::string, int> table;
     for (int i = 0; i <= 255; i++) {
         std::string ch = "";
@@ -61,7 +61,7 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
     p += s1[0];
     int code = 256;
     std::vector<int> output_code;
-    std::cout << "String\tOutput_Code\tAddition\n";
+    // std::cout << "String\tOutput_Code\tAddition\n";
     for (unsigned int i = 0; i < length; i++) {
         if (i != length - 1)
             c += s1[i + 1];
@@ -69,8 +69,8 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
             p = p + c;
         }
         else {
-            std::cout << p << "\t" << table[p] << "\t\t"
-                 << p + c << "\t" << code << std::endl;
+            // std::cout << p << "\t" << table[p] << "\t\t"
+            //      << p + c << "\t" << code << std::endl;
             output_code.push_back(table[p]);
             table[p + c] = code;
             code++;
@@ -78,11 +78,12 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
         }
         c = "";
     }
-    std::cout << p << "\t" << table[p] << std::endl;
+    // std::cout << p << "\t" << table[p] << std::endl;
     output_code.push_back(table[p]);
 
 	// Creating header for unique chunk with LSB 0
 	chunk_header = (chunk_header & 0) | (sizeof(output_code) << 1);
+	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 
 	memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
 	offset += sizeof(unsigned int);
@@ -93,38 +94,6 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
     return output_code;
 }
 
-// void lzw_decoding(std::vector<int> op)
-// {
-//     std::cout << "\nDecoding\n";
-//     std::unordered_map<int, std::string> table;
-//     for (int i = 0; i <= 255; i++) {
-//         std::string ch = "";
-//         ch += char(i);
-//         table[i] = ch;
-//     }
-//     int old = op[0], n;
-//     std::string s = table[old];
-//     std::string c = "";
-//     c += s[0];
-//     std::cout << s;
-//     int count = 256;
-//     for (int i = 0; i < op.size() - 1; i++) {
-//         n = op[i + 1];
-//         if (table.find(n) == table.end()) {
-//             s = table[old];
-//             s = s + c;
-//         }
-//         else {
-//             s = table[n];
-//         }
-//         cout << s;
-//         c = "";
-//         c += s[0];
-//         table[count] = table[old] + c;
-//         count++;
-//         old = n;
-//     }
-// }
 
 uint64_t hash_func(unsigned char *input, unsigned int pos)
 {
@@ -138,7 +107,7 @@ uint64_t hash_func(unsigned char *input, unsigned int pos)
 
 void sha_dummy(unsigned char* buff, chunk *cptr)
 {
-	cptr->sha = hash_func(&buff, cptr->size);
+	cptr->sha = hash_func(buff, cptr->size);
 }
 
 void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, unsigned int length)
@@ -150,18 +119,7 @@ void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, unsigned
 	length:
 	*/
 
-	// static uint64_t hash = hash_func(buff, WIN_SIZE);
-	// std::cout<<"Hash = "<<hash<<" lower_bound = "<<lower_bound<<std::endl;
-
 	uint64_t hash = *starting_hash;
-
-	// if((hash % MODULUS) == TARGET)
-	// {
-	// 		printf(" %d \t", cptr->lower_bound + 1);
-	// 		cptr->upper_bound = cptr->lower_bound + 1;
-	// 		return;
-	// 		// return lower_bound + 1;
-	// }
 
 	// for (int i = WIN_SIZE + 1; i < MAX_CHUNK_SIZE - WIN_SIZE; i++)
 	for (int i = 1; i < MAX_CHUNK_SIZE; i++)
@@ -211,7 +169,7 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chunks_map, unsigned int* unique_chunks)
 {
 
-	unsigned int chunk_header;
+	unsigned int chunk_header=0;
 
 	if (chunks_map.find(cptr->sha) == chunks_map.end())
 	{
@@ -220,7 +178,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chun
 		cptr->num = *unique_chunks;
 		chunks_map[cptr->sha] = cptr->num;
 		cptr->is_unique = true;
-		*unique_chunks++;
+		*unique_chunks= *unique_chunks + 1;
 		return;
 		// return true;
 	}
@@ -230,6 +188,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<uint64_t, unsigned int> chun
 
 		// Creating the header for a duplicate chunk with LSB 1
 		chunk_header = (chunk_header | 1) | (chunks_map[cptr->sha] << 1);
+		std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
 
 		memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
 		offset += sizeof(unsigned int);
@@ -271,6 +230,7 @@ void compress(unsigned char *buffer, unsigned int length, std::unordered_map<uin
 	{
 		// curr_chunk.upper_bound = cdc_eff(&buffer[curr_chunk.lower_bound], cptr, &starting_hash, length);
 		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, &starting_hash, length);
+		curr_chunk.size = curr_chunk.upper_bound - curr_chunk.lower_bound;
 
 		std::cout<<"Size of chunk: "<<curr_chunk.size<<"\t";
 
@@ -333,18 +293,6 @@ int main(int argc, char* argv[]) {
 	done = buffer[1] & DONE_BIT_L;
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
-	// printing takes time so be weary of transfer rate
-	//printf("length: %d offset %d\n",length,offset);
-
-	// we are just memcpy'ing here, but you should call your
-	// top function here.
-
-	// unsigned int* boundaries= (unsigned int*) malloc(sizeof(unsigned int) * length);
-	// std::vector<unsigned int> boundaries;
-	// std::vector<uint64_t> sha_vector;
-
-	// std::vector<int> output_code;
-	// output_code.push_back(compress(&buffer[HEADER], length));		// Vector of vector error******
 
 	std::unordered_map<uint64_t, unsigned int> chunks_map;
 	unsigned int unique_chunks = 0;
@@ -389,6 +337,8 @@ int main(int argc, char* argv[]) {
 		writer++;
 	}
 
+	std::cout<< "Unique chunks: "<<(unique_chunks)<<"\n";
+
 	// write file to root and you can use diff tool on board
 	FILE *outfd = fopen("output_cpu.bin", "wb");
 	int bytes_written = fwrite(&file[0], 1, offset, outfd);
@@ -408,4 +358,3 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
-
