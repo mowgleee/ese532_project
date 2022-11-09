@@ -240,11 +240,6 @@ void compress(unsigned char *buffer, unsigned int length, std::unordered_map<std
 	curr_chunk.lower_bound = HEADER + WIN_SIZE;
 	curr_chunk.upper_bound = HEADER + WIN_SIZE;
 
-	// if((hash % MODULUS) == TARGET)
-	// {
-	// 	printf(" %d \t", cptr->lower_bound + 1);
-	// 	cptr->upper_bound = cptr->lower_bound + 1;
-	// }
 
 	while(curr_chunk.upper_bound < length)
 	{
