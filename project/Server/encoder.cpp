@@ -44,7 +44,7 @@ typedef struct chunk
 	uint32_t lower_bound = 0;
 	uint32_t upper_bound = 0;
 	uint32_t size = 0;
-	std::string sha;
+	std::string sha = "";
 	bool is_unique;
 	int num;
 }chunk;
@@ -52,7 +52,7 @@ typedef struct chunk
 void lzw_encoding(unsigned char* s1, chunk* cptr)
 {
 	uint32_t length = cptr->size;
-	uint32_t chunk_header=0;
+	std::cout<<"length of chunk: "<<length<<"\n";
 
     // std::cout << "Encoding\n";
     std::unordered_map<std::string, int> table;
@@ -85,6 +85,8 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
     }
     // std::cout << p << "\t" << table[p] << std::endl;
     output_code.push_back(table[p]);
+	int output_code_size = output_code.size();
+	std::cout << "output_code size = " << output_code_size << "\n";
 
 	uint32_t curr_code = 0;
 	uint32_t write_data = 0;
@@ -93,8 +95,11 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	uint32_t running_bits = 0;
 	uint32_t write_byte_size = 0;//number of bytes to write
 	uint8_t write_byte = 0;//whats written in file
-	int orig_offset = offset;
-	uint32_t bytes_written = 0;
+	// int orig_offset = offset;
+	uint32_t bytes_written = ceil(output_code_size);//*13.0/8.0);
+	uint32_t chunk_header = (chunk_header & 0) | (bytes_written<<1);
+	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
+	memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
 
 	for(int idx=0; idx<output_code.size(); idx++)
@@ -110,15 +115,14 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
 			offset += sizeof(unsigned char);
 		}
-		bytes_written += write_byte_size;
+		// bytes_written += write_byte_size;
 		old_byte = write_data<<(write_byte_size*8);
 		rem_bits = running_bits - write_byte_size*8;
 	}
 
 	// Creating header for unique chunk with LSB 0
-	chunk_header = (chunk_header & 0) | bytes_written<<1;
-	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
-	memcpy(&file[orig_offset], &chunk_header, sizeof(uint32_t));
+	std::cout<<"Bytes written: "<<bytes_written<<"\n";
+	// chunk_header=420;
 }
 
 
@@ -146,7 +150,7 @@ void sha_dummy(unsigned char* buff, chunk *cptr)
 	cptr->sha = std::string(shaSum);
 }
 
-void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, uint32_t length)
+void cdc_eff(unsigned char *buff, chunk *cptr, uint32_t length)
 {
 	/*
 	buff:
@@ -155,10 +159,11 @@ void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, uint32_t
 	length:
 	*/
 
-	uint64_t hash = *starting_hash;
+	uint64_t hash = hash_func(buff, WIN_SIZE);
+	// uint64_t hash = *starting_hash;
 
-	// for (int i = WIN_SIZE + 1; i < MAX_CHUNK_SIZE - WIN_SIZE; i++)
-	for (int i = 1; i < MAX_CHUNK_SIZE; i++)
+	for (int i = WIN_SIZE + 1; i < MAX_CHUNK_SIZE - WIN_SIZE; i++)
+	// for (int i = 1; i < MAX_CHUNK_SIZE; i++)
 	{
 		// Check if condition is working
 		if (i - 1 + WIN_SIZE + cptr->lower_bound > length)
@@ -167,19 +172,20 @@ void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, uint32_t
 			return;
 			// return length;
 		}
+		
 
 		hash = (hash * PRIME - (buff[i - 1] * pow(PRIME, WIN_SIZE + 1)) + (buff[i - 1 + WIN_SIZE] * PRIME));
 
 		if((hash % MODULUS) == TARGET)
 		{
 			std::cout<<"\nBoundary found at: "<<i + cptr->lower_bound<<"\t";
-			*starting_hash = hash;
+			// *starting_hash = hash;
 			cptr->upper_bound = i + cptr->lower_bound;
 			// return i + lower_bound;
 			return;
 		}
 	}
-	*starting_hash = hash;
+	// *starting_hash = hash;
 	cptr->upper_bound = MAX_CHUNK_SIZE + cptr->lower_bound;
 	return;
 	// return MAX_CHUNK_SIZE + lower_bound;
@@ -246,21 +252,24 @@ void compress(unsigned char *buffer, uint32_t length, std::unordered_map<std::st
 	// Structure to store data for current chunk
 	chunk curr_chunk;
 
-	curr_chunk.lower_bound = HEADER;
-	curr_chunk.upper_bound = HEADER;
+	curr_chunk.lower_bound = 0;
+	curr_chunk.upper_bound = 0;
 
 	chunk *cptr = &curr_chunk;
 
-	uint64_t starting_hash = hash_func(&buffer[curr_chunk.lower_bound], WIN_SIZE);
+	// uint64_t starting_hash = hash_func(&buffer[curr_chunk.lower_bound], WIN_SIZE);
 	
-	curr_chunk.lower_bound = HEADER + WIN_SIZE;
-	curr_chunk.upper_bound = HEADER + WIN_SIZE;
+	// curr_chunk.lower_bound = 0;// + WIN_SIZE;
+	// curr_chunk.upper_bound = 0;// + WIN_SIZE;
 
 
 	while(curr_chunk.upper_bound < length)
 	{
 		// curr_chunk.upper_bound = cdc_eff(&buffer[curr_chunk.lower_bound], cptr, &starting_hash, length);
-		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, &starting_hash, length);
+		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, length);
+
+		std::cout<<"current chunk lower bound: "<<curr_chunk.lower_bound<<"\n";
+		std::cout<<"current chunk upper bound: "<<curr_chunk.upper_bound<<"\n";
 		curr_chunk.size = curr_chunk.upper_bound - curr_chunk.lower_bound;
 
 		std::cout<<"Size of chunk: "<<curr_chunk.size<<"\t";

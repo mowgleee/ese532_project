@@ -81,6 +81,8 @@ int main(int Parameter_count, char * Parameters[])
     return EXIT_FAILURE;
   }
 
+  std::cout<<"Opened both input and output files\n";
+
   chunk_list Chunks;
   int i = 0;
   while (true)
@@ -93,7 +95,10 @@ int main(int Parameter_count, char * Parameters[])
     if ((Header & 1) == 0)
     {
       int Chunk_size = Header >> 1;
+      std::cout<<"Header: "<<Header<<"\n";
+      std::cout<<"Chunk size: "<<Chunk_size<<"\n";
       const std::string & Chunk = Decompress(Chunk_size);
+      std::cout<<Chunk<<"\n";
       Chunks.push_back(Chunk);
       std::cout << "Decompressed chunk of size " << Chunk.length() << ".\n";
       Output.write(&Chunk[0], Chunk.length());
