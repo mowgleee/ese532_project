@@ -313,13 +313,7 @@ int main(int argc, char* argv[]) {
 	unsigned int unique_chunks = 0;
 
 	compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
-	
-	// chunk_match();
-	// lzw_encode();
 
-	// memcpy(&file[offset], output_code, output_code.size());
-
-	// offset += output_code.size();
 	writer++;
 
 	//last message
@@ -345,9 +339,6 @@ int main(int argc, char* argv[]) {
 		// printf("length: %d offset %d\n",length,offset);
 		
 		compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
-
-		// memcpy(&file[offset], &buffer[HEADER], length);
-		// offset += length;
 		
 		writer++;
 	}
