@@ -88,7 +88,6 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 
 	// uint32_t total_bits = 0;
 	uint32_t curr_code = 0;
-	uint32_t curr_bits = 0;
 	unsigned int write_data = 0;
 	unsigned int old_byte = 0;
 	unsigned int rem_bits = 0;
@@ -115,7 +114,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		curr_code = output_code[idx];
 		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
 		write_data |= old_byte;
-		running_bits = rem_bits + CODE_LENGTH;
+		running_bits = rem_bits + (int)CODE_LENGTH;
 		write_byte_size = running_bits/8;
 		// write_byte = write_data>>24;//(32 - running_bits - 8);
 		for (unsigned int i=1; i<=write_byte_size; i++)
