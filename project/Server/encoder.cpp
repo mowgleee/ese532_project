@@ -114,7 +114,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		}
 		bytes_written += write_byte_size;
 		old_byte = write_data<<(write_byte_size*8);
-		rem_bits = rem_bits - write_byte_size*8;
+		rem_bits = running_bits - write_byte_size*8;
 	}
 
 	// Creating header for unique chunk with LSB 0
