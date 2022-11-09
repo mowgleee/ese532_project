@@ -33,7 +33,7 @@
 
 
 #define MAX_CHUNK_SIZE 8*1024
-#define CODE_LENGTH log2(MAX_CHUNK_SIZE)
+#define CODE_LENGTH 13//log2(MAX_CHUNK_SIZE)
 
 int offset = 0;
 unsigned char* file;
@@ -100,17 +100,6 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 
 	for(int idx=0; idx<output_code.size(); idx++)
 	{
-		// curr_code = output_code[idx];
-		// write_data = curr_code<<(32 - CODE_LENGTH + rem_bits);
-		// write_data |= old_byte;
-		// running_bits = rem_bits + CODE_LENGTH;
-		// write_byte_size = running_bits/8;
-		// memcpy(&file[bytes_written + offset], &write_data, write_byte_size * sizeof(unsigned char));
-		// // memcpy(&file[offset], &output_code, output_code.size());
-		// bytes_written += write_byte_size;
-		// old_byte = write_data<<(write_byte_size*8);
-		// rem_bits = rem_bits - write_byte_size*8;
-
 		curr_code = output_code[idx];
 		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
 		write_data |= old_byte;
@@ -123,8 +112,6 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
 			offset += sizeof(unsigned char);
 		}
-		// memcpy(&file[offset], &output_code, output_code.size());
-		// offset += write_byte_size;
 		bytes_written += write_byte_size;
 		old_byte = write_data<<(write_byte_size*8);
 		rem_bits = rem_bits - write_byte_size*8;
@@ -134,11 +121,6 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	chunk_header = (chunk_header & 0) | bytes_written<<1;
 	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 	memcpy(&file[orig_offset], &chunk_header, sizeof(unsigned int));
-	// offset += sizeof(unsigned int);
-	// memcpy(&file[offset], &output_code, output_code.size());
-	// offset += output_code.size();
-
-    // return output_code;
 }
 
 
