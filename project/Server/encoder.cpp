@@ -121,9 +121,10 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		{
 			write_byte = write_data>>(32-i*8);
 			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+			offset += sizeof(unsigned char);
 		}
 		// memcpy(&file[offset], &output_code, output_code.size());
-		offset += write_byte_size;
+		// offset += write_byte_size;
 		bytes_written += write_byte_size;
 		old_byte = write_data<<(write_byte_size*8);
 		rem_bits = rem_bits - write_byte_size*8;
