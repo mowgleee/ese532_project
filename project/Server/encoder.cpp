@@ -31,7 +31,9 @@
 #define MODULUS 256
 #define TARGET 0
 
+
 #define MAX_CHUNK_SIZE 8*1024
+#define CODE_LENGTH log2(MAX_CHUNK_SIZE)
 
 int offset = 0;
 unsigned char* file;
@@ -47,7 +49,7 @@ typedef struct chunk
 	int num;
 }chunk;
 
-std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
+void lzw_encoding(unsigned char* s1, chunk* cptr)
 {
 	unsigned int length = cptr->size;
 	unsigned int chunk_header=0;
@@ -63,7 +65,7 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
     std::string p = "", c = "";
     p += s1[0];
     int code = 256;
-    std::vector<int> output_code;
+    std::vector<unsigned int> output_code;
     // std::cout << "String\tOutput_Code\tAddition\n";
     for (unsigned int i = 0; i < length; i++) {
         if (i != length - 1)
@@ -84,17 +86,59 @@ std::vector<int> lzw_encoding(unsigned char* s1, chunk* cptr)
     // std::cout << p << "\t" << table[p] << std::endl;
     output_code.push_back(table[p]);
 
-	// Creating header for unique chunk with LSB 0
-	chunk_header = (chunk_header & 0) | (output_code.size() << 1);
-	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
-
-	memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
+	// uint32_t total_bits = 0;
+	uint32_t curr_code = 0;
+	uint32_t curr_bits = 0;
+	unsigned int write_data = 0;
+	unsigned int old_byte = 0;
+	unsigned int rem_bits = 0;
+	unsigned int running_bits = 0;
+	unsigned int write_byte_size = 0;//number of bytes to write
+	uint8_t write_byte = 0;//whats written in file
+	int orig_offset = offset;
+	unsigned int bytes_written = 0;
 	offset += sizeof(unsigned int);
 
-	memcpy(&file[offset], &output_code, output_code.size());
-	offset += output_code.size();
+	for(int idx=0; idx<output_code.size(); idx++)
+	{
+		// curr_code = output_code[idx];
+		// write_data = curr_code<<(32 - CODE_LENGTH + rem_bits);
+		// write_data |= old_byte;
+		// running_bits = rem_bits + CODE_LENGTH;
+		// write_byte_size = running_bits/8;
+		// memcpy(&file[bytes_written + offset], &write_data, write_byte_size * sizeof(unsigned char));
+		// // memcpy(&file[offset], &output_code, output_code.size());
+		// bytes_written += write_byte_size;
+		// old_byte = write_data<<(write_byte_size*8);
+		// rem_bits = rem_bits - write_byte_size*8;
 
-    return output_code;
+		curr_code = output_code[idx];
+		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
+		write_data |= old_byte;
+		running_bits = rem_bits + CODE_LENGTH;
+		write_byte_size = running_bits/8;
+		// write_byte = write_data>>24;//(32 - running_bits - 8);
+		for (unsigned int i=1; i<=write_byte_size; i++)
+		{
+			write_byte = write_data>>(32-i*8);
+			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+		}
+		// memcpy(&file[offset], &output_code, output_code.size());
+		offset += write_byte_size;
+		bytes_written += write_byte_size;
+		old_byte = write_data<<(write_byte_size*8);
+		rem_bits = rem_bits - write_byte_size*8;
+	}
+
+	// Creating header for unique chunk with LSB 0
+	chunk_header = (chunk_header & 0) | bytes_written<<1;
+	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
+	memcpy(&file[orig_offset], &chunk_header, sizeof(unsigned int));
+	// offset += sizeof(unsigned int);
+	// memcpy(&file[offset], &output_code, output_code.size());
+	// offset += output_code.size();
+
+    // return output_code;
 }
 
 
