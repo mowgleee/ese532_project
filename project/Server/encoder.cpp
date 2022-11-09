@@ -41,9 +41,9 @@ unsigned char* file;
 // Structure to store all information about a chunk
 typedef struct chunk
 {
-	unsigned int lower_bound = 0;
-	unsigned int upper_bound = 0;
-	unsigned int size = 0;
+	uint32_t lower_bound = 0;
+	uint32_t upper_bound = 0;
+	uint32_t size = 0;
 	std::string sha;
 	bool is_unique;
 	int num;
@@ -51,8 +51,8 @@ typedef struct chunk
 
 void lzw_encoding(unsigned char* s1, chunk* cptr)
 {
-	unsigned int length = cptr->size;
-	unsigned int chunk_header=0;
+	uint32_t length = cptr->size;
+	uint32_t chunk_header=0;
 
     // std::cout << "Encoding\n";
     std::unordered_map<std::string, int> table;
@@ -65,9 +65,9 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
     std::string p = "", c = "";
     p += s1[0];
     int code = 256;
-    std::vector<unsigned int> output_code;
+    std::vector<uint32_t> output_code;
     // std::cout << "String\tOutput_Code\tAddition\n";
-    for (unsigned int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
         if (i != length - 1)
             c += s1[i + 1];
         if (table.find(p + c) != table.end()) {
@@ -86,17 +86,16 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
     // std::cout << p << "\t" << table[p] << std::endl;
     output_code.push_back(table[p]);
 
-	// uint32_t total_bits = 0;
 	uint32_t curr_code = 0;
-	unsigned int write_data = 0;
-	unsigned int old_byte = 0;
-	unsigned int rem_bits = 0;
-	unsigned int running_bits = 0;
-	unsigned int write_byte_size = 0;//number of bytes to write
+	uint32_t write_data = 0;
+	uint32_t old_byte = 0;
+	uint32_t rem_bits = 0;
+	uint32_t running_bits = 0;
+	uint32_t write_byte_size = 0;//number of bytes to write
 	uint8_t write_byte = 0;//whats written in file
 	int orig_offset = offset;
-	unsigned int bytes_written = 0;
-	offset += sizeof(unsigned int);
+	uint32_t bytes_written = 0;
+	offset += sizeof(uint32_t);
 
 	for(int idx=0; idx<output_code.size(); idx++)
 	{
@@ -105,8 +104,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		write_data |= old_byte;
 		running_bits = rem_bits + (int)CODE_LENGTH;
 		write_byte_size = running_bits/8;
-		// write_byte = write_data>>24;//(32 - running_bits - 8);
-		for (unsigned int i=1; i<=write_byte_size; i++)
+		for (uint32_t i=1; i<=write_byte_size; i++)
 		{
 			write_byte = write_data>>(32-i*8);
 			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
@@ -120,11 +118,11 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	// Creating header for unique chunk with LSB 0
 	chunk_header = (chunk_header & 0) | bytes_written<<1;
 	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
-	memcpy(&file[orig_offset], &chunk_header, sizeof(unsigned int));
+	memcpy(&file[orig_offset], &chunk_header, sizeof(uint32_t));
 }
 
 
-uint64_t hash_func(unsigned char *input, unsigned int pos)
+uint64_t hash_func(unsigned char *input, uint32_t pos)
 {
 	uint64_t hash = 0;
 	for ( int i = 0 ; i < WIN_SIZE ; i++)
@@ -146,17 +144,9 @@ void sha_dummy(unsigned char* buff, chunk *cptr)
     wc_Sha3_384_Final(&sha3_384, (unsigned char*)shaSum);
 
 	cptr->sha = std::string(shaSum);
-
-	// return;
-
-    // for(int x = 0; x < SHA3_384_DIGEST_SIZE; x++)
-    // {
-    //     printf("%x",shaSum[x]);
-    // }
-
 }
 
-void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, unsigned int length)
+void cdc_eff(unsigned char *buff, chunk *cptr, uint64_t* starting_hash, uint32_t length)
 {
 	/*
 	buff:
@@ -212,10 +202,10 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void chunk_matching(chunk *cptr, std::unordered_map<std::string, unsigned int> *chunks_map, unsigned int* unique_chunks)
+void chunk_matching(chunk *cptr, std::unordered_map<std::string, uint32_t> *chunks_map, uint32_t* unique_chunks)
 {
 
-	unsigned int chunk_header=0;
+	uint32_t chunk_header=0;
 
 	if (chunks_map->find(cptr->sha) == chunks_map->end())
 	{
@@ -236,8 +226,8 @@ void chunk_matching(chunk *cptr, std::unordered_map<std::string, unsigned int> *
 		chunk_header = (chunk_header | 1) | ((*chunks_map)[cptr->sha] << 1);
 		std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
 
-		memcpy(&file[offset], &chunk_header, sizeof(unsigned int));
-		offset += sizeof(unsigned int);
+		memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
+		offset += sizeof(uint32_t);
 
 		cptr->is_unique = false;
 		return;
@@ -245,7 +235,7 @@ void chunk_matching(chunk *cptr, std::unordered_map<std::string, unsigned int> *
 	}
 }
 
-void compress(unsigned char *buffer, unsigned int length, std::unordered_map<std::string, unsigned int> *chunks_map, unsigned int* unique_chunks)
+void compress(unsigned char *buffer, uint32_t length, std::unordered_map<std::string, uint32_t> *chunks_map, uint32_t* unique_chunks)
 {
 	/*
 	buffer: 	pointer to input data (one packet)
@@ -296,7 +286,7 @@ int main(int argc, char* argv[]) {
 	unsigned char* input[NUM_PACKETS];
 	int writer = 0;
 	int done = 0;
-	unsigned int length = 0;
+	uint32_t length = 0;
 	int count = 0;
 	ESE532_Server server;
 
@@ -335,8 +325,8 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 
-	std::unordered_map<std::string, unsigned int> chunks_map;
-	unsigned int unique_chunks = 0;
+	std::unordered_map<std::string, uint32_t> chunks_map;
+	uint32_t unique_chunks = 0;
 
 	compress(&buffer[HEADER], length, &chunks_map, &unique_chunks);
 
