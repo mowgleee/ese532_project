@@ -15,6 +15,7 @@
 #include "stopwatch.h"
 #include <vector>
 #include <bits/stdc++.h>
+#include <bitset>
 
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/sha3.h>
@@ -86,9 +87,9 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
     // cout << p << "\t" << table[p] << endl;
     output_code.push_back(table[p]);
 	int output_code_size = output_code.size();
-	int out_code=sizeof(output_code);
+	// out_code=sizeof(output_code);
 	std::cout << "output_code size = " << output_code_size << "\n";
-	std::cout << "output_code size(sizeof): = " << out_code << "\n";
+	//std::cout << "output_code size(sizeof): = " << out_code << "\n";
 
 
 	uint32_t curr_code = 0;
@@ -121,15 +122,18 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		rem_bits = running_bits - write_byte_size*8;
 	}
 	if(rem_bits){
-		std::cout<<"Remaining Bits:"<<rem_bits<<"\n";
-		std::cout<<"Remaining Byte:"<<old_byte<<"\n";
+		std::bitset<32> x(old_byte);
+		std::cout<<" No of Remaining Bits:"<<rem_bits<<"\n";
+		std::cout<<"Remaining Bits:"<<x<<"\n";
 		write_byte = old_byte>>24;
+		std::bitset<8> y(write_byte);
+		std::cout<<"Remaining Byte:"<<y<<"\n";
 
 		// write_byte_size=rem_bits/8;
 		// for (uint32_t i=1; i<=write_byte_size; i++)
 		// {
 		// 	write_byte = old_byte>>(32-i*8);
-			memcpy(&file[offset], &old_byte, sizeof(unsigned char));
+			memcpy(&file[offset], &write_byte, sizeof(unsigned char));
 			offset+= sizeof(unsigned char);
 		// }
 	}
@@ -179,7 +183,7 @@ void cdc_eff(unsigned char *buff, chunk *cptr, uint32_t length)
 		// Check if condition is working
 		if (i - 1 + WIN_SIZE + cptr->lower_bound > length)
 		{
-			cptr->upper_bound = length;
+			cptr->upper_bound = length-1;
 			return;
 		}
 		
@@ -219,8 +223,39 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 	static std::unordered_map<std::string, uint32_t> chunks_map;
 	uint32_t chunk_header = 1;
 	static uint32_t unique_chunks = 0;
+	static std::vector<unsigned int> chunk_length;
 
-	if (chunks_map.find(cptr->sha) == chunks_map.end())
+	if (!(chunks_map.find(cptr->sha) == chunks_map.end()))
+	{
+		if((cptr->size == chunk_length[chunks_map[cptr->sha]])){
+			// Creating the header for a duplicate chunk with LSB 1
+			std::cout<<"This chunk is a copy of chunk no. :"<<chunks_map[cptr->sha]<<" with sha: "<<(cptr->sha)<<"\n";
+			chunk_header |= (chunks_map[cptr->sha] << 1);
+			std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
+
+			memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
+			offset += sizeof(uint32_t);
+
+			cptr->is_unique = false;
+			return;
+			// return false;
+		}
+		else
+		{
+			// Condition if chunk is unique
+
+			cptr->num = unique_chunks;
+			chunks_map[cptr->sha] = unique_chunks;
+			std::cout<<"Num assigned to chunk: "<<chunks_map[cptr->sha]<<"\n";
+			cptr->is_unique = true;
+			chunk_length.push_back(cptr->size);
+			unique_chunks++;
+			return;
+			// return true;
+		}
+
+	}
+	else
 	{
 		// Condition if chunk is unique
 
@@ -228,23 +263,10 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 		chunks_map[cptr->sha] = unique_chunks;
 		std::cout<<"Num assigned to chunk: "<<chunks_map[cptr->sha]<<"\n";
 		cptr->is_unique = true;
+		chunk_length.push_back(cptr->size);
 		unique_chunks++;
 		return;
 		// return true;
-	}
-	else
-	{
-		// Creating the header for a duplicate chunk with LSB 1
-		std::cout<<"This chunk is a copy of chunk no. :"<<chunks_map[cptr->sha]<<" with sha: "<<(cptr->sha)<<"\n";
-		chunk_header |= (chunks_map[cptr->sha] << 1);
-		std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
-
-		memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
-		offset += sizeof(uint32_t);
-
-		cptr->is_unique = false;
-		return;
-		// return false;
 	}
 }
 
@@ -265,7 +287,7 @@ void compress(unsigned char *buffer, uint32_t length)//, std::unordered_map<std:
 	chunk *cptr = &curr_chunk;
 
 
-	while(curr_chunk.upper_bound < length)
+	while(curr_chunk.lower_bound < length)
 	{
 		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, length);
 
@@ -332,6 +354,7 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 
+
 	compress(&buffer[HEADER], length);//, &chunks_map);//, &unique_chunks);
 
 	writer++;
@@ -355,6 +378,7 @@ int main(int argc, char* argv[]) {
 		done = buffer[1] & DONE_BIT_L;
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
+		std::cout<<"Packet Length: "<< length<<"\n";
 		
 		compress(&buffer[HEADER], length);
 		
