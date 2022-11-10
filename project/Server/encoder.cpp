@@ -86,7 +86,10 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
     // cout << p << "\t" << table[p] << endl;
     output_code.push_back(table[p]);
 	int output_code_size = output_code.size();
+	int out_code=sizeof(output_code);
 	std::cout << "output_code size = " << output_code_size << "\n";
+	std::cout << "output_code size(sizeof): = " << out_code << "\n";
+
 
 	uint32_t curr_code = 0;
 	uint32_t write_data = 0;
@@ -116,6 +119,19 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		}
 		old_byte = write_data<<(write_byte_size*8);
 		rem_bits = running_bits - write_byte_size*8;
+	}
+	if(rem_bits){
+		std::cout<<"Remaining Bits:"<<rem_bits<<"\n";
+		std::cout<<"Remaining Byte:"<<old_byte<<"\n";
+		write_byte = old_byte>>24;
+
+		// write_byte_size=rem_bits/8;
+		// for (uint32_t i=1; i<=write_byte_size; i++)
+		// {
+		// 	write_byte = old_byte>>(32-i*8);
+			memcpy(&file[offset], &old_byte, sizeof(unsigned char));
+			offset+= sizeof(unsigned char);
+		// }
 	}
 }
 
@@ -172,7 +188,7 @@ void cdc_eff(unsigned char *buff, chunk *cptr, uint32_t length)
 
 		if((hash % MODULUS) == TARGET)
 		{
-			cptr->upper_bound = i + cptr->lower_bound;
+			cptr->upper_bound = i  + cptr->lower_bound;
 			return;
 		}
 	}
@@ -266,7 +282,7 @@ void compress(unsigned char *buffer, uint32_t length)//, std::unordered_map<std:
 			lzw_encoding(&buffer[curr_chunk.lower_bound], cptr);
 		}
 
-		curr_chunk.lower_bound = curr_chunk.upper_bound+1;
+		curr_chunk.lower_bound = curr_chunk.upper_bound +1;
 
 		std::cout<<"CHUNK COMPLETE\n\n\n";
 	}
