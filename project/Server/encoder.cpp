@@ -205,12 +205,16 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	int x;
 	extern char *optarg;
 
-	while ((x = getopt(argc, argv, ":b:")) != -1) {
+	while ((x = getopt(argc, argv, ":f:b:")) != -1) {
 		switch (x) {
 		case 'b':
 			*blocksize = atoi(optarg);
 			printf("blocksize is set to %d optarg\n", *blocksize);
 			break;
+		// case 'f':
+		// 	*out = optarg;
+		// 	printf("filename is set to %s optarg\n", *out);
+		// 	break;
 		case ':':
 			printf("-%c without parameter\n", optopt);
 			break;
@@ -311,6 +315,24 @@ void compress(unsigned char *buffer, uint32_t length)//, std::unordered_map<std:
 }
 
 int main(int argc, char* argv[]) {
+	char *fileName[50];
+	if(argc==4){
+		if(argv[1]=="-"){
+		*fileName = argv[3];
+		}
+		else{
+			*fileName = argv[1];
+		}
+	}
+	else if(argc==2)
+	{
+		*fileName = argv[1];
+	}
+	else
+	{
+		*fileName = strdup("compressed.bin");
+	}
+
 	stopwatch ethernet_timer;
 	unsigned char* input[NUM_PACKETS];
 	int writer = 0;
@@ -321,7 +343,7 @@ int main(int argc, char* argv[]) {
 
 	// default is 2k
 	int blocksize = BLOCKSIZE;
-
+	
 	// set blocksize if decalred through command line
 	handle_input(argc, argv, &blocksize);
 
@@ -386,7 +408,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	// write file to root and you can use diff tool on board
-	FILE *outfd = fopen("output_cpu.bin", "wb");
+
+
+			
+
+	FILE *outfd = fopen(*fileName, "wb");
 	int bytes_written = fwrite(&file[0], 1, offset, outfd);
 	printf("write file with %d\n", bytes_written);
 	fclose(outfd);
