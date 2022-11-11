@@ -53,6 +53,10 @@ typedef struct chunk
 void lzw_encoding(unsigned char* s1, chunk* cptr)
 {
 	uint32_t length = cptr->size;
+	static uint32_t total_length_compressed=0;
+	static uint32_t total_length_uncompressed=0;
+	total_length_uncompressed += length;
+	
 	std::cout<<"length of chunk: "<<length<<"\n";
 
     // std::cout << "Encoding\n";
@@ -100,6 +104,8 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	uint32_t write_byte_size = 0;//number of bytes to write
 	uint8_t write_byte = 0;//whats written in file
 	uint32_t bytes_written = ceil(output_code_size*13.0/8.0);
+	total_length_compressed += bytes_written;
+	total_length_compressed += 4;
 	uint32_t chunk_header = (bytes_written<<1);
 	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 	memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
@@ -123,7 +129,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	}
 	if(rem_bits){
 		std::bitset<32> x(old_byte);
-		std::cout<<" No of Remaining Bits:"<<rem_bits<<"\n";
+		std::cout<<"No of Remaining Bits:"<<rem_bits<<"\n";
 		std::cout<<"Remaining Bits:"<<x<<"\n";
 		write_byte = old_byte>>24;
 		std::bitset<8> y(write_byte);
@@ -137,6 +143,8 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 			offset+= sizeof(unsigned char);
 		// }
 	}
+	std::cout<<"RUNNING TOTAL BYTES(LZW): "<<total_length_compressed<<"\n";
+	std::cout<<"RUNNING TOTAL BYTES OF UNIQUE CHUNKS BEFORE COMPRESSION(LZW): "<<total_length_uncompressed<<"\n";
 }
 
 
@@ -228,6 +236,7 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 	uint32_t chunk_header = 1;
 	static uint32_t unique_chunks = 0;
 	static std::vector<unsigned int> chunk_length;
+	static uint32_t total_length_compressed = 0;
 
 	if (!(chunks_map.find(cptr->sha) == chunks_map.end()))
 	{
@@ -239,6 +248,8 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 
 			memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
 			offset += sizeof(uint32_t);
+			total_length_compressed += 4;
+			std::cout<<"RUNNING TOTAL BYTES(CHUNK MATCHING): "<<total_length_compressed<<"\n";
 
 			cptr->is_unique = false;
 			return;
@@ -330,7 +341,7 @@ int main(int argc, char* argv[]) {
 	}
 	else
 	{
-		*fileName = strdup("compressed.bin");
+		*fileName = "compressed.bin";
 	}
 
 	stopwatch ethernet_timer;
