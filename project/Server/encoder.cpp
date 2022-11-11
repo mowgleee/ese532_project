@@ -345,12 +345,14 @@ int main(int argc, char* argv[]) {
 	}
 
 	stopwatch ethernet_timer;
+	stopwatch output_timer;
 	unsigned char* input[NUM_PACKETS];
 	int writer = 0;
 	int done = 0;
 	uint32_t length = 0;
 	int count = 0;
 	ESE532_Server server;
+	uint32_t total_input_size = 0;
 
 	// default is 2k
 	int blocksize = BLOCKSIZE;
@@ -386,6 +388,8 @@ int main(int argc, char* argv[]) {
 	done = buffer[1] & DONE_BIT_L;
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
+	total_input_size += length;
+	output_timer.start();
 
 
 	compress(&buffer[HEADER], length);//, &chunks_map);//, &unique_chunks);
@@ -411,6 +415,7 @@ int main(int argc, char* argv[]) {
 		done = buffer[1] & DONE_BIT_L;
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
+		total_input_size += length;
 		std::cout<<"Packet Length: "<< length<<"\n";
 		
 		compress(&buffer[HEADER], length);
@@ -419,6 +424,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// write file to root and you can use diff tool on board
+	output_timer.stop();
 
 
 			
@@ -435,9 +441,13 @@ int main(int argc, char* argv[]) {
 	free(file);
 	std::cout << "--------------- Key Throughputs ---------------" << std::endl;
 	float ethernet_latency = ethernet_timer.latency() / 1000.0;
-	float input_throughput = (bytes_written * 8 / 1000000.0) / ethernet_latency; // Mb/s
+	float output_latency = output_timer.latency() / 1000.0;
+	float input_throughput = (total_input_size * 8 / 1000000.0) / ethernet_latency; // Mb/s
+	float output_throughput = (bytes_written * 8 / 1000000.0) / output_latency;
 	std::cout << "Input Throughput to Encoder: " << input_throughput << " Mb/s."
 			<< " (Latency: " << ethernet_latency << "s)." << std::endl;
+	std::cout << "Output Throughput from Encoder: " << output_throughput << " Mb/s."
+			<< " (Latency: " << output_latency << "s)." << std::endl;
 
 	return 0;
 }
