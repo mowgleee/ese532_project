@@ -22,9 +22,6 @@
 #include <bitset>
 #include <math.h>
 
-#include <arm_neon.h>
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/sha3.h>
 
 #include "../stopwatch.h"
 #include "../server.h"
