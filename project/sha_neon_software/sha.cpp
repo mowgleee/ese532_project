@@ -143,8 +143,8 @@ void sha_comp(uint32x4_t MSG0, uint32x4_t MSG1, uint32x4_t MSG2, uint32x4_t MSG3
     *STATE1 = vsha256h2q_u32(*STATE1, TMP2, TMP1);
 
     /* Combine state */
-    *STATE0 = vaddq_u32(*STATE0, ABEF_SAVE);
-    *STATE1 = vaddq_u32(*STATE1, CDGH_SAVE);
+    *STATE0 = vaddq_u32(*STATE0, *ABEF_SAVE);
+    *STATE1 = vaddq_u32(*STATE1, *CDGH_SAVE);
 
     // data += 64;
     // length -= 64;
@@ -208,7 +208,7 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     MSG2 = vld1q_u32((const uint32_t *)(padded_data + 32));
     MSG3 = vld1q_u32((const uint32_t *)(padded_data + 48));
 
-    sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1);
+    sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
 
     /* Save state */
     vst1q_u32(&state[0], STATE0);
