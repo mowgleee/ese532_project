@@ -4,15 +4,6 @@
 
 void sha_comp(uint32x4_t MSG0, uint32x4_t MSG1, uint32x4_t MSG2, uint32x4_t MSG3, uint32x4_t* STATE0, uint32x4_t* STATE1, uint32x4_t *ABEF_SAVE,uint32x4_t *CDGH_SAVE)
 {
-    // /* Save state */
-    //     ABEF_SAVE = STATE0;
-    //     CDGH_SAVE = STATE1;
-
-    //     /* Load message */
-    //     MSG0 = vld1q_u32((const uint32_t *)(data +  0));
-    //     MSG1 = vld1q_u32((const uint32_t *)(data + 16));
-    //     MSG2 = vld1q_u32((const uint32_t *)(data + 32));
-    //     MSG3 = vld1q_u32((const uint32_t *)(data + 48));
     uint32x4_t TMP0, TMP1, TMP2;
 
     /* Reverse for little endian */
@@ -145,9 +136,6 @@ void sha_comp(uint32x4_t MSG0, uint32x4_t MSG1, uint32x4_t MSG2, uint32x4_t MSG3
     /* Combine state */
     *STATE0 = vaddq_u32(*STATE0, *ABEF_SAVE);
     *STATE1 = vaddq_u32(*STATE1, *CDGH_SAVE);
-
-    // data += 64;
-    // length -= 64;
 }
 
 /* Process multiple blocks. The caller is responsible for setting the initial */
@@ -156,27 +144,28 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
 {
 
     // Padding calculation
-    uint64_t input_bits = length * 8;
-    int zero_padding_bits_temp = 448 - ((input_bits + 1) % 512);
-    bool run_again=zero_padding_bits_temp<0;
-    if(run_again){
-        zero_padding_bits_temp+=512;
+    uint64_t input_bits = length<<3;
+    int64_t zero_padding_bits = 448 - ((input_bits + 1) % 512);
+    bool padding_overflow = zero_padding_bits<0;
+
+    if(padding_overflow){
+        zero_padding_bits+=512;
     }
-    uint64_t zero_padding_bits= zero_padding_bits_temp;
 
     // Padding buffer and calculating last iteration
-    uint16_t padding_bytes = (zero_padding_bits + 1) / 8;
-    unsigned char padding[padding_bytes] = {0};
+    uint16_t padding_bytes = (zero_padding_bits + 1) >> 3;
+    uint8_t padding[padding_bytes] = {0};
     padding[0] = 1 << 7;
 
     // {data[(length - length%64), (length + length%64)], padding, input_bits}
-    unsigned char padded_data[128]= {0}; // last 512 bits 
+    uint8_t padded_data[128]= {0}; // last 512 bits 
     
-    memcpy(&padded_data[0], &data[length - (length % 64)], length % 64);
-    memcpy(&padded_data[length % 64], &padding[0], padding_bytes);
+    memcpy(&padded_data[0], &data[length - (length % 64)], length % 64);//all data written
+
+    memcpy(&padded_data[length % 64], &padding[0], 1);//first byte with MSB 1 copied. proceeding padded_data is already 0
 
     for(int i=8;i>0;i--){
-        unsigned char curr_byte = input_bits>>(8*(i-1));
+        uint8_t curr_byte = input_bits>>((i-1)<<3);
         memcpy(&padded_data[length % 64 + padding_bytes+(8-i)], &curr_byte, 1);
     }
 
@@ -220,7 +209,7 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
 
     sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
 
-    if(run_again){
+    if(padding_overflow){
         
     MSG0 = vld1q_u32((const uint32_t *)(padded_data + 64));
     MSG1 = vld1q_u32((const uint32_t *)(padded_data + 80));
@@ -235,9 +224,9 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     vst1q_u32(&state[4], STATE1);
 }
 
-void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
+void sha(uint8_t* buff, chunk *cptr)//, wc_Sha3* sha3_384)
 {
-	unsigned char shaChar[32]={0};
+	uint8_t shaChar[32]={0};
 
 	std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";
 
@@ -253,7 +242,7 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
     {
         for (int j=0; j<=3; j++)
         {
-            shaChar[(i*4)+j] = state[i]>>((3-j)*8);
+            shaChar[(i<<2)+j] = state[i]>>((3-j)<<3);
         }
     }
 
