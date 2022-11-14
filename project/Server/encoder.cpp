@@ -186,11 +186,11 @@ int main(int argc, char* argv[]) {
 	std::cout << "Input Throughput to Encoder: " << input_throughput << " Mb/s."
 			<< " (Latency: " << ethernet_latency << "s)." << std::endl;
 
-	std::cout << "CDC Latency: " << cdc_eff_timer.latency() << "ms)\t" << "AVG: "<< cdc_eff_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "SHA Latency: " << sha_timer.latency() << "ms)\t" << "AVG: "<< sha_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "Chunk matching Latency: " << chunk_matching_timer.latency() << "ms)\t" << "AVG: "<< chunk_matching_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "LZW Latency: " << lzw_timer.latency() << "ms)\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "Bitpack Latency: " << bit_pack_timer.latency() << "ms)\t" << "AVG: "<< bit_pack_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "CDC Latency: " << cdc_eff_timer.latency() << "ms\t" << "AVG: "<< cdc_eff_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "SHA Latency: " << sha_timer.latency() << "ms\t" << "AVG: "<< sha_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "Chunk matching Latency: " << chunk_matching_timer.latency() << "ms\t" << "AVG: "<< chunk_matching_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "LZW Latency: " << lzw_timer.latency() << "ms\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "Bitpack Latency: " << bit_pack_timer.latency() << "ms\t" << "AVG: "<< bit_pack_timer.avg_latency() <<" ms"<< std::endl;
 
 	std::cout << "Output Throughput from Encoder: " << output_throughput << " Mb/s."
 			<< " (Latency: " << output_latency << "s)." << std::endl;
