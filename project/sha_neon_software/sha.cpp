@@ -194,6 +194,6 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
     }
     printf("\n");
 
-    std::string shaString(reinterpret_cast<char*>(shaChar));
+    std::string shaString(reinterpret_cast<char*>(shaChar), 32);
     cptr->sha = shaString;
 }

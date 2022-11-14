@@ -1,7 +1,7 @@
 # Makefile to compile SHA using NEON on software
 
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -O3 -mcpu=native -DNDEBUG 
+CXXFLAGS = -std=c++11  -march=armv8-a+crypto -Wall -O3 -DNDEBUG
 LDFLAGS = 
 INCLUDES = sha.h
 
