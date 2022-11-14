@@ -162,7 +162,7 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     // Padding buffer and calculating last iteration
     uint16_t padding_bytes = (zero_padding_bits + 1) / 8;
     unsigned char padding[padding_bytes] = {0};
-    padding[0] = 1 << 8;
+    padding[0] = 1 << 7;
 
     // {data[(length - length%64), (length + length%64)], padding, input_bits}
     unsigned char* padded_data; // last 512 bits 
