@@ -6,6 +6,7 @@
 ## To Do
 * Implement LZW on FPGA
 * Logger with verbosity levels
+* Prefetch reads and issue writes
 
 ###To Do Later
 * Check if we need to do rabin fingerprinting
