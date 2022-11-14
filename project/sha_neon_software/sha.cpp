@@ -157,7 +157,12 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
 
     // Padding calculation
     uint64_t input_bits = length * 8;
-    uint16_t zero_padding_bits = 448 - ((input_bits + 1) % 512);
+    int zero_padding_bits_temp = 448 - ((input_bits + 1) % 512);
+    bool run_again=zero_padding_bits_temp<0;
+    if(run_again){
+        zero_padding_bits_temp+=512;
+    }
+    uint64_t zero_padding_bits= zero_padding_bits_temp;
 
     // Padding buffer and calculating last iteration
     uint16_t padding_bytes = (zero_padding_bits + 1) / 8;
@@ -165,11 +170,15 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     padding[0] = 1 << 7;
 
     // {data[(length - length%64), (length + length%64)], padding, input_bits}
-    unsigned char* padded_data; // last 512 bits 
+    unsigned char padded_data[128]= {0}; // last 512 bits 
     
-    memcpy(padded_data, &data[length - (length % 64)], length % 64);
-    memcpy(&padded_data[length % 64], &padding, padding_bytes);
-    memcpy(&padded_data[length % 64 + padding_bytes], &input_bits, 8);
+    memcpy(&padded_data[0], &data[length - (length % 64)], length % 64);
+    memcpy(&padded_data[length % 64], &padding[0], padding_bytes);
+
+    for(int i=8;i>0;i--){
+        unsigned char curr_byte = input_bits>>(8*(i-1));
+        memcpy(&padded_data[length % 64 + padding_bytes+(8-i)], &curr_byte, 1);
+    }
 
     uint32x4_t STATE0, STATE1, ABEF_SAVE, CDGH_SAVE;
     uint32x4_t MSG0, MSG1, MSG2, MSG3;
@@ -208,7 +217,18 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     MSG2 = vld1q_u32((const uint32_t *)(padded_data + 32));
     MSG3 = vld1q_u32((const uint32_t *)(padded_data + 48));
 
+
     sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
+
+    if(run_again){
+        
+    MSG0 = vld1q_u32((const uint32_t *)(padded_data + 64));
+    MSG1 = vld1q_u32((const uint32_t *)(padded_data + 80));
+    MSG2 = vld1q_u32((const uint32_t *)(padded_data + 96));
+    MSG3 = vld1q_u32((const uint32_t *)(padded_data + 112));
+    
+    sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
+    }
 
     /* Save state */
     vst1q_u32(&state[0], STATE0);
