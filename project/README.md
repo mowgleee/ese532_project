@@ -12,6 +12,8 @@
 Before porting LZW to H/W (SHA Neon, Other Blocks in S/W)
 
 * LittlePrince.txt
+
+
 Input File Size 14336 Bytes = 14KB
 write file with 4220 Bytes = 4.12KB
 --------------- Key Throughputs ---------------
@@ -24,6 +26,8 @@ Bitpack Latency: 0.31592ms)	AVG: 0.0210613 ms
 Output Throughput from Encoder: 13.4962 Mb/s. (Latency: 0.00844506s).
 
 * Franklin.txt
+
+
 Input File Size
 Input File Size = 389KB
 write file with 446075 Bytes = 435.6KB
