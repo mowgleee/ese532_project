@@ -29,7 +29,7 @@ HOST_CXX ?= aarch64-linux-gnu-g++ -march=armv8-a+simd -mtune=cortex-a53 -std=c++
 VPP ?= ${XILINX_VITIS}/bin/v++
 RM = rm -f
 RMDIR = rm -rf
-INCLUDES = -I./Server/SHA -I./Server/CDC -I./Server/Dedup -I./Server/LZW -ICommon/
+INCLUDES = -I./Server/CDC -I./Server/Dedup -I./Server/LZW -ICommon/
 
 VITIS_PLATFORM = u96v2_sbc_base
 VITIS_PLATFORM_DIR = ${PLATFORM_REPO_PATHS}
@@ -55,7 +55,7 @@ VPP_OPTS = --target hw
 CLIENT_SOURCES = Client/client.cpp
 CLIENT_EXE = client
 
-SERVER_SOURCES = Server/encoder.cpp Server/server.cpp Server/CDC/cdc.cpp Server/Dedup/dedup.cpp Server/LZW/lzw.cpp Server/SHA/sha.cpp
+SERVER_SOURCES = Server/encoder.cpp Server/server.cpp Server/CDC/cdc.cpp Server/Dedup/dedup.cpp Server/LZW/lzw.cpp
 SERVER_OBJECTS =$(SERVER_SOURCES:.cpp=.o)
 SERVER_EXE = encoder
 
@@ -78,7 +78,7 @@ $(CLIENT_EXE):
 	g++ -O3 $(CLIENT_SOURCES) -o "$@"
 
 $(SERVER_EXE): $(SERVER_OBJECTS)
-	$(HOST_CXX) $(INCLUDES) -o "$@" $(+) $(LDFLAGS)
+	$(HOST_CXX) $(INCLUDES) sha_neon_software/sha.o -o "$@" $(+) $(LDFLAGS)
 	# -@echo $(VPP) --package --config fpga/package.cfg --package.kernel_image $(PLATFORM_REPO_PATHS)/sw/ese532_hw6_pfm/linux_domain/image/image.ub --package.rootfs $(PLATFORM_REPO_PATHS)/sw/ese532_hw6_pfm/linux_domain/rootfs/rootfs.ext4 $(XCLBIN)
 	# -@$(VPP) --package --config fpga/package.cfg --package.sd_file "$@" --package.kernel_image $(PLATFORM_REPO_PATHS)/sw/ese532_hw6_pfm/linux_domain/image/image.ub --package.rootfs $(PLATFORM_REPO_PATHS)/sw/ese532_hw6_pfm/linux_domain/rootfs/rootfs.ext4 $(XCLBIN)
 
