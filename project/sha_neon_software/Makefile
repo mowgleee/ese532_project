@@ -3,10 +3,10 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -O3 -mcpu=native -DNDEBUG 
 LDFLAGS = 
-INCLUDES = Server/SHA/sha.h
+INCLUDES = sha.h
 
 EXECUTABLES = sha
-SRC = Server/SHA/sha.cpp
+SRC = sha.cpp
 
 .PHONY: clean
 

@@ -1,9 +1,25 @@
-// #include "encoder.h"
-#include "../Common/common.h"
+// Including common requirements here as commpiled separately
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <iostream>
+#include <math.h>
 
 #include <arm_neon.h>
 // #include <wolfssl/options.h>
 // #include <wolfssl/wolfcrypt/sha3.h>
+
+// Structure to store all information about a chunk
+typedef struct chunk
+{
+	uint32_t lower_bound = 0;
+	uint32_t upper_bound = 0;
+	uint32_t size = 0;
+	std::string sha;
+	bool is_unique;
+	int num;
+}chunk;
 
 static const uint32_t K[] =
 {

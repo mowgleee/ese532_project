@@ -178,11 +178,6 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
 
     sha256_process_arm(state, buff, cptr->size);
 
-    const uint8_t b1 = (uint8_t)(state[0] >> 24);
-    const uint8_t b2 = (uint8_t)(state[0] >> 16);
-    const uint8_t b3 = (uint8_t)(state[0] >>  8);
-    const uint8_t b4 = (uint8_t)(state[0] >>  0);
-
     for(int i=0; i<8 ; i++)
     {
         for (int j=0; j<=3; j++)
@@ -192,8 +187,12 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
     }
 
     printf("SHA256 hash: ");
-    printf("%02X%02X%02X%02X%02X%02X%02X%02X\n",
-        b1, b2, b3, b4, b5, b6, b7, b8);
+
+    for(int i = 0; i < 32; i++)
+    {
+        printf("%02X", (uint8_t)shaChar[i]);
+    }
+    printf("\n");
 
     std::string shaString(reinterpret_cast<char*>(shaChar));
     cptr->sha = shaString;
