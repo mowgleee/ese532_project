@@ -43,6 +43,7 @@
 
 extern int offset;
 extern unsigned char* file;
+extern stopwatch bit_pack_timer;
 
 // Structure to store all information about a chunk
 typedef struct chunk

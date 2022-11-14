@@ -1,5 +1,10 @@
 #include "encoder.h"
 
+stopwatch lzw_timer;
+stopwatch cdc_eff_timer;
+stopwatch chunk_matching_timer;
+stopwatch sha_timer;
+
 void handle_input(int argc, char* argv[], int* blocksize) {
 	int x;
 	extern char *optarg;
@@ -30,19 +35,28 @@ void compress(unsigned char *buffer, uint32_t length)
 
 	while(curr_chunk.lower_bound < length)
 	{
+		cdc_eff_timer.start();
 		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, length);
+		cdc_eff_timer.stop();
 
 		std::cout<<"current chunk lower bound: "<<curr_chunk.lower_bound<<"\n";
 		std::cout<<"current chunk upper bound: "<<curr_chunk.upper_bound<<"\n";
 		curr_chunk.size = curr_chunk.upper_bound - curr_chunk.lower_bound + 1;
 		std::cout<<"Size of chunk: "<<curr_chunk.size<<"\n";
 
+		sha_timer.start();
 		sha(&buffer[curr_chunk.lower_bound], cptr);
+		sha_timer.stop();
+
+		chunk_matching_timer.start();
 		chunk_matching(cptr);
-		
+		chunk_matching_timer.stop();
+
 		if (curr_chunk.is_unique)
 		{
+			lzw_timer.start();
 			lzw_encoding(&buffer[curr_chunk.lower_bound], cptr);
+			lzw_timer.stop();
 		}
 
 		curr_chunk.lower_bound = curr_chunk.upper_bound +1;
@@ -164,11 +178,20 @@ int main(int argc, char* argv[]) {
 	free(file);
 	std::cout << "--------------- Key Throughputs ---------------" << std::endl;
 	float ethernet_latency = ethernet_timer.latency() / 1000.0;
-	float output_latency = output_timer.latency() / 1000.0;
+	float output_latency = output_timer.latency() / 1000.0;//in sec
+
 	float input_throughput = (total_input_size * 8 / 1000000.0) / ethernet_latency; // Mb/s
 	float output_throughput = (total_input_size * 8 / 1000000.0) / output_latency;
+
 	std::cout << "Input Throughput to Encoder: " << input_throughput << " Mb/s."
 			<< " (Latency: " << ethernet_latency << "s)." << std::endl;
+
+	std::cout << "CDC Latency: " << cdc_eff_timer.latency() << "ms)\t" << "AVG: "<< cdc_eff_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "SHA Latency: " << sha_timer.latency() << "ms)\t" << "AVG: "<< sha_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "Chunk matching Latency: " << chunk_matching_timer.latency() << "ms)\t" << "AVG: "<< chunk_matching_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "LZW Latency: " << lzw_timer.latency() << "ms)\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "Bitpack Latency: " << bit_pack_timer.latency() << "ms)\t" << "AVG: "<< bit_pack_timer.avg_latency() <<" ms"<< std::endl;
+
 	std::cout << "Output Throughput from Encoder: " << output_throughput << " Mb/s."
 			<< " (Latency: " << output_latency << "s)." << std::endl;
 

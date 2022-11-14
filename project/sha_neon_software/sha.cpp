@@ -156,8 +156,7 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     uint16_t padding_bytes = (zero_padding_bits + 1) >> 3;
     uint8_t padding[padding_bytes] = {0};
     padding[0] = 1 << 7;
-
-    // {data[(length - length%64), (length + length%64)], padding, input_bits}
+    
     uint8_t padded_data[128]= {0}; // last 512 bits 
     
     memcpy(&padded_data[0], &data[length - (length % 64)], length % 64);//all data written

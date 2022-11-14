@@ -43,7 +43,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	int output_code_size = output_code.size();
 	std::cout << "output_code size = " << output_code_size << "\n";
 
-
+	bit_pack_timer.start();
 	uint32_t curr_code = 0;
 	uint32_t write_data = 0;
 	uint32_t old_byte = 0;
@@ -85,6 +85,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 		memcpy(&file[offset], &write_byte, sizeof(unsigned char));
 		offset+= sizeof(unsigned char);
 	}
+	bit_pack_timer.stop();
 	std::cout<<"RUNNING TOTAL BYTES(LZW): "<<total_length_compressed<<"\n";
 	std::cout<<"RUNNING TOTAL BYTES OF UNIQUE CHUNKS BEFORE COMPRESSION(LZW): "<<total_length_uncompressed<<"\n";
 }
