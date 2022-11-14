@@ -8,7 +8,7 @@
 * Logger with verbosity levels
 * Prefetch reads and issue writes
 
-### To Do Later
+## To Do Later
 * Check if we need to do rabin fingerprinting
 * Account for chunks across packet boundaries
 * Implement SHA on the NEON vector SIMD unit (Done)
