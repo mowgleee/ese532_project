@@ -7,6 +7,8 @@
 * Implement LZW on FPGA
 * Logger with verbosity levels
 * Prefetch reads and issue writes
+* Power Table in CDC
+* Hash only once in CDC
 
 ## Benchmarks
 Before porting LZW to H/W (SHA Neon, Other Blocks in S/W)
