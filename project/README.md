@@ -1,6 +1,8 @@
 # Data Depulication and Compression
 
 * Ddup uses Rolling Hash/(Rabin Fingerprinting) to create content defined chunks.
+* Deduplication requires creating a hash table of all unique chunks.
+* Hashes for dedup table calculated using SHA256 on NEON vector units of device.
 * Comp uses LZW compression algorithm.
 
 ## To Do
@@ -9,6 +11,7 @@
 * Prefetch reads and issue writes
 * Power Table in CDC
 * Hash only once in CDC
+* Write a script for compilation, file copying and execution process.
 
 ## Benchmarks
 Before porting LZW to H/W (SHA Neon, Other Blocks in S/W)
