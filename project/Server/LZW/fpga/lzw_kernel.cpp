@@ -1,18 +1,3 @@
-// #include <iostream>
-// #include <ctime>
-// #include <utility>
-// #include <cstdio>
-// #include <cstdlib>
-// #include <cstring>
-
-// #include<ap_int.h>
-// #include<hls_stream.h>
-
-// // Creating ap_int datatype for 13 bit code
-// // typedef ap_uint<13> lzw_code;
-
-// #define MAX_NUM_OF_CODES 8192 // Dictionary size acc. to 13 bit code in LZW
-
 #include "lzw_kernel.h"
 
 unsigned int MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
@@ -72,38 +57,11 @@ int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, int size, uint64_t* output_code, uint64_t* output_code_size)
+void lzw_kernel(unsigned char* input, int size, uint8_t* output_code_packed, uint64_t* output_code_size)
 {
-
-#pragma HLS INTERFACE m_axi port=input bundle=a
-#pragma HLS INTERFACE m_axi port=size bundle=a
-#pragma HLS INTERFACE m_axi port=output_code_packed bundle=a
-#pragma HLS INTERFACE m_axi port=output_code_size bundle=a
-
-// #pragma HLS INTERFACE s_axilite port=output_code bundle=a
-
-//     lzw_encoding(input, cptr);
-// }
-
-// void lzw_encoding(unsigned char* input, chunk* cptr)
-// {
-
 	uint32_t length = size;
+	uint32_t output_code[8192];
 
-	/*
-	static uint32_t total_length_compressed = 0;
-	static uint32_t total_length_uncompressed = 0;
-
-	total_length_uncompressed += length;
-	
-	std::cout<<"length of chunk: "<<length<<"\n";
-	*/
-
-    // std::cout << "Encoding\n";
-
-	// Convert to memory map
-	// std::unordered_map<std::string, int> table;
-    
 	// lzw_code
 	uint64_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
 // #pragma HLS ARRAY_PARTITION variable = table block factor = 1024 //idk
@@ -142,7 +100,6 @@ void lzw_kernel(unsigned char* input, int size, uint64_t* output_code, uint64_t*
 
     // std::vector<int> output_code;
 
-	// uint64_t output_code[MAX_NUM_OF_CODES];
 	uint64_t op_idx = 0;
 	
     for (uint32_t i = 0; i < length; i++) {
@@ -158,29 +115,52 @@ void lzw_kernel(unsigned char* input, int size, uint64_t* output_code, uint64_t*
 		int64_t match = search(table, code, hash_val);
 
         if (match < 0/*table.find(p + c) != table.end()*/) {			// Change the find function
-            // p = p + c;
-			//p_idx--;//c is here
-            // cout << p << "\t" << table[p] << "\t\t"
-            //      << p + c << "\t" << code << endl;
-            // output_code.push_back(table[p]);
 			output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx - 1));
-
-            // table[p + c] = code;
 			table[code] = hash_val;
-			
             code++;
-            // p = c;
 			p_idx = 0;
 			p[p_idx++] = c;
         }
-//        c = '\0';
     }
-
-    // cout << p << "\t" << table[p] << endl;
-    // output_code.push_back(table[p]);
 	output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx-1));
+	// std::bitset<13> y(output_code[op_idx-1]);
+	// std::cout<<"Out Byte in HW: "<<y<<"\n";
 
-	// output_code_packed = output_code;
+
+
+	/////////////////////////////////////////////////////////////
+    uint32_t offset_pack = 0;
+
+    uint32_t curr_code = 0;
+	uint32_t write_data = 0;
+	uint32_t old_byte = 0;
+	uint32_t rem_bits = 0;
+	uint32_t running_bits = 0;
+	uint32_t write_byte_size = 0;//number of bytes to write
+	uint8_t write_byte = 0;//whats written in file
+
+    for(int idx=0; idx < op_idx; idx++)
+	{
+		curr_code = output_code[idx];
+		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
+		write_data |= old_byte;
+		running_bits = rem_bits + (int)CODE_LENGTH;
+		write_byte_size = running_bits/8;
+		for (uint32_t i=1; i<=write_byte_size; i++)
+		{
+			write_byte = write_data>>(32-i*8);
+            output_code_packed[offset_pack] = write_byte;
+			// memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+			offset_pack += 1;
+		}
+		old_byte = write_data<<(write_byte_size*8);
+		rem_bits = running_bits - write_byte_size*8;
+	}
+	if(rem_bits){
+		write_byte = old_byte>>24;
+        output_code_packed[offset_pack] = write_byte;
+        offset_pack +=1;
+	}
 
 	*output_code_size = op_idx;
 }

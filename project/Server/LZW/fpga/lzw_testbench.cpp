@@ -2,6 +2,7 @@
 #include <bits/stdc++.h>
 #include "lzw_kernel.h"
 
+#define CODE_LENGTH 13
 using namespace std;
 
 vector<int> lzw_SW(string s1)
@@ -40,13 +41,19 @@ vector<int> lzw_SW(string s1)
     return output_code;
 }
 
-bool compare_outputs(vector<int> sw_output_code, uint64_t *hw_output_code)
+bool compare_outputs(uint8_t* sw_output_code, uint8_t *hw_output_code, uint32_t offset_pack)
 {
     bool Equal = true;
-    for (int i=0; i<sw_output_code.size(); i++)
+    for (int i=0; i<offset_pack; i++)
     {
         if(sw_output_code[i] != hw_output_code[i])
         {
+            std::bitset<8> y(sw_output_code[i]);
+		    std::cout<<"SW Byte:"<<y<<"\n";
+
+            std::bitset<8> x(hw_output_code[i]);
+		    std::cout<<"HW Byte:"<<x<<"\n";
+
             cout<<"SW out code: "<<sw_output_code[i]<<" HW out code: "<<hw_output_code[i]<<'\n';
             Equal = false;
         }
@@ -56,15 +63,58 @@ bool compare_outputs(vector<int> sw_output_code, uint64_t *hw_output_code)
 
 int main()
 {
-    string s = "WYS*WYGWYS*WYSWYSG\"";
-    unsigned char s_char[20] = "WYS*WYGWYS*WYSWYSG\"";
-    uint64_t hw_output_code[8096]={0};
+    string s = "abc";
+    unsigned char s_char[4] = "abc";
+    uint8_t hw_output_code[8096]={0};
     uint64_t output_code_size = 0;
 
-    lzw_kernel(s_char, 20, hw_output_code, &output_code_size);
+    lzw_kernel(s_char, 4, hw_output_code, &output_code_size);
     vector<int> sw_output_code = lzw_SW(s);
-    cout << endl;
 
-    bool Equal = compare_outputs(sw_output_code, hw_output_code);
+    uint8_t sw_output_code_packed[8096]={0};
+    uint32_t offset_pack = 0;
+
+    uint32_t curr_code = 0;
+	uint32_t write_data = 0;
+	uint32_t old_byte = 0;
+	uint32_t rem_bits = 0;
+	uint32_t running_bits = 0;
+	uint32_t write_byte_size = 0;//number of bytes to write
+	uint8_t write_byte = 0;//whats written in file
+
+    for(int idx=0; idx<sw_output_code.size(); idx++)
+	{
+		curr_code = sw_output_code[idx];
+		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
+		write_data |= old_byte;
+		running_bits = rem_bits + (int)CODE_LENGTH;
+		write_byte_size = running_bits/8;
+		for (uint32_t i=1; i<=write_byte_size; i++)
+		{
+			write_byte = write_data>>(32-i*8);
+            sw_output_code_packed[offset_pack] = write_byte;
+			// memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+			offset_pack += 1;
+		}
+		old_byte = write_data<<(write_byte_size*8);
+		rem_bits = running_bits - write_byte_size*8;
+	}
+	if(rem_bits){
+		// std::bitset<32> x(old_byte);
+		// std::cout<<"No of Remaining Bits:"<<rem_bits<<"\n";
+		// std::cout<<"Remaining Bits:"<<x<<"\n";
+		write_byte = old_byte>>24;
+		// std::bitset<8> y(write_byte);
+		// std::cout<<"Remaining Byte:"<<y<<"\n";
+		//memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+
+		// offset+= sizeof(unsigned char);
+
+        // write_byte = write_data>>(32-i*8);
+        sw_output_code_packed[offset_pack] = write_byte;
+        offset_pack +=1;
+	}
+
+    bool Equal = compare_outputs(sw_output_code_packed, hw_output_code, offset_pack);
     std::cout << "TEST " << (Equal ? "PASSED" : "FAILED") << std::endl;
 }

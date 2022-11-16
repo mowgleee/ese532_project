@@ -22,7 +22,6 @@
 #include <bitset>
 #include <math.h>
 
-
 #include "../stopwatch.h"
 #include "../server.h"
 
