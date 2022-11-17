@@ -52,13 +52,20 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     
     // Load_data(Input);
 
-    unsigned char* output_from_fpga;
-    output_from_fpga = (unsigned char *)malloc(MAX_CHUNK_SIZE);
+    unsigned char* input_to_fpga = new unsigned char[cptr->size];
+    // input_to_fpga = (unsigned char*)malloc(cptr->size);
 
-    uint32_t output_size_from_fpga;
+    memcpy(input_to_fpga, s1, cptr->size);
+
+    unsigned char* output_from_fpga = new unsigned char[MAX_CHUNK_SIZE];
+    // output_from_fpga = (unsigned char *)malloc(MAX_CHUNK_SIZE);
+
+    // uint32_t output_size_from_fpga;
 
     uint32_t* ptr_chunk_size = &cptr->size;
-    uint32_t* ptr_output_size = &output_size_from_fpga;
+    // uint32_t* ptr_output_size = &output_size_from_fpga;
+    uint32_t* ptr_output_size;
+    ptr_output_size = new uint32_t[1];
 
     // ------------------------------------------------------------------------------------
     // Step 1: Initialize the OpenCL environment
@@ -97,14 +104,14 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     // size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
     size_t output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
 
-    OCL_CHECK(err, cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err));
+    OCL_CHECK(err, cl::Buffer input_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_chunk_bytes, input_to_fpga, &err));
     // cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
 
     // cl::Buffer input_size_buf;
-    OCL_CHECK(err, cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err));
+    OCL_CHECK(err, cl::Buffer output_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_chunk_bytes, output_from_fpga, &err));
     // cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
 
-    OCL_CHECK(err, cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err););
+    OCL_CHECK(err, cl::Buffer output_size_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size, &err););
     // cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits;
     
     // Creating buffer, CL_MEM_READ_ONLY since fpga is reading input from buffers
@@ -208,7 +215,7 @@ void lzw_host(unsigned char* s1, chunk* cptr)
 
     q.finish();
 
-    std::cout << "Output size received from kernel: " << output_size_from_fpga << std::endl;
+    std::cout << "Output size received from kernel: " << *ptr_output_size << std::endl;
 
     std::cout << "Data received from kernel: ";
     for(uint32_t i = 0; i < 10; i++) {
@@ -232,13 +239,13 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     // uint32_t bytes_written = ceil(output_code_size*13.0/8.0);
 
     // Writing chunk header to global file pointer
-	uint32_t chunk_header = (output_size_from_fpga << 1);
+	uint32_t chunk_header = (*ptr_output_size << 1);
 	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 	memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
 
     // Writing compressed chunk reveived from fpga to global file pointer
-    memcpy(&file[offset], output_from_fpga, output_size_from_fpga);
-    offset+= output_size_from_fpga;
+    memcpy(&file[offset], output_from_fpga, *ptr_output_size);
+    offset+= *ptr_output_size;
 
 }

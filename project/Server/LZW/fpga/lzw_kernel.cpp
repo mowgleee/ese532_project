@@ -59,6 +59,11 @@ int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
 
 void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
 {
+	#pragma INTERFACE m_axi port=input offset=slave bundle=p0
+	#pragma INTERFACE m_axi port=size offset=slave bundle=p0
+	#pragma INTERFACE m_axi port=output_code_packed offset=slave bundle=p1
+	#pragma INTERFACE m_axi port=output_code_size offset=slave bundle=p1
+
 	uint32_t length = size;
 	uint32_t output_code[8192];
 
