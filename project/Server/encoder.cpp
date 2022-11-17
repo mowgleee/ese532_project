@@ -39,10 +39,13 @@ void compress(unsigned char *buffer, uint32_t length)
 		cdc_eff(&buffer[curr_chunk.lower_bound], cptr, length);
 		cdc_eff_timer.stop();
 
-		std::cout<<"current chunk lower bound: "<<curr_chunk.lower_bound<<"\n";
-		std::cout<<"current chunk upper bound: "<<curr_chunk.upper_bound<<"\n";
+		//std::cout<<"current chunk lower bound: "<<curr_chunk.lower_bound<<"\n";
+		makelog(VERB_DEBUG,"current chunk lower bound %d\n", curr_chunk.lower_bound);
+		//std::cout<<"current chunk upper bound: "<<curr_chunk.upper_bound<<"\n";
+		makelog(VERB_DEBUG,"current chunk upper bound %d\n", curr_chunk.upper_bound);
 		curr_chunk.size = curr_chunk.upper_bound - curr_chunk.lower_bound + 1;
-		std::cout<<"Size of chunk: "<<curr_chunk.size<<"\n";
+		//std::cout<<"Size of chunk: "<<curr_chunk.size<<"\n";
+		makelog(VERB_DEBUG,"size of chunk %d\n", curr_chunk.lower_bound);
 
 		sha_timer.start();
 		sha(&buffer[curr_chunk.lower_bound], cptr);
@@ -61,7 +64,8 @@ void compress(unsigned char *buffer, uint32_t length)
 
 		curr_chunk.lower_bound = curr_chunk.upper_bound +1;
 
-		std::cout<<"CHUNK COMPLETE\n\n\n";
+		//std::cout<<"CHUNK COMPLETE\n\n\n";
+		makelog(VERB_DEBUG,"Chunk Complete");
 	}
 }
 
@@ -156,7 +160,8 @@ int main(int argc, char* argv[]) {
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
 		total_input_size += length;
-		std::cout<<"Packet Length: "<< length<<"\n";
+		//std::cout<<"Packet Length: "<< length<<"\n";
+		makelog(VERB_DEBUG,"Packet Length %d \n", length);
 		
 		compress(&buffer[HEADER], length);
 		

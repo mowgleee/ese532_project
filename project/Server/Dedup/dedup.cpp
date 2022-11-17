@@ -11,7 +11,8 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 		// Condition if chunk is unique
 		cptr->num = unique_chunks;
 		chunks_map[cptr->sha] = unique_chunks;
-		std::cout<<"Num assigned to chunk: "<<chunks_map[cptr->sha]<<"\n";
+		//std::cout<<"Num assigned to chunk: "<<chunks_map[cptr->sha]<<"\n";
+		makelog(VERB_DEBUG,"Num assigned to chunk %d \n", chunks_map[cptr->sha]);
 		cptr->is_unique = true;
 		unique_chunks++;
 		return;
@@ -19,9 +20,11 @@ void chunk_matching(chunk *cptr)//, std::unordered_map<std::string, uint32_t> *c
 	else
 	{
 		// Creating the header for a duplicate chunk with LSB 1
-		std::cout<<"This chunk is a copy of chunk no. :"<<chunks_map[cptr->sha]<<" with sha: "<<(cptr->sha)<<"\n";
+		//std::cout<<"This chunk is a copy of chunk no. :"<<chunks_map[cptr->sha]<<" with sha: "<<(cptr->sha)<<"\n";
+		makelog(VERB_DEBUG,"This chunk is a copy of chunk no %d with sha %d \n",chunks_map[cptr->sha],cptr->sha);
 		chunk_header |= (chunks_map[cptr->sha] << 1);
-		std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
+		//std::cout<<"\nChunk matching Header: "<<chunk_header<<"\n";
+		makelog(VERB_DEBUG,"Chunk matching Header %d \n",chunk_header);
 
 		memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
 		offset += sizeof(uint32_t);

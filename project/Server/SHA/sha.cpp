@@ -239,7 +239,7 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
 {
 	unsigned char shaChar[32]={0};
 
-	std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";
+	//std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";
 
     /* initial state */
     uint32_t state[8] = {
@@ -257,13 +257,13 @@ void sha(unsigned char* buff, chunk *cptr)//, wc_Sha3* sha3_384)
         }
     }
 
-    printf("SHA256 hash: ");
+    //printf("SHA256 hash: ");
 
     for(int i = 0; i < 32; i++)
     {
         printf("%02X", (uint8_t)shaChar[i]);
     }
-    printf("\n");
+    //printf("\n");
 
     std::string shaString(reinterpret_cast<char*>(shaChar), 32);
     cptr->sha = shaString;

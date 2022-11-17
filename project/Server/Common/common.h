@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
@@ -43,6 +44,24 @@
 extern int offset;
 extern unsigned char* file;
 extern stopwatch bit_pack_timer;
+
+#define VERB_LOW 0
+#define VERB_MED 1
+#define VERB_HIGH 2
+#define VERB_DEBUG VERB_LOW
+
+inline void makelog(uint8_t verb, const char *fmt, ...)
+{
+	va_list args;
+
+	if(verb==VERB_HIGH){
+    	va_start(args, fmt);
+    	vprintf(fmt, args);
+    	va_end(args);
+
+	}
+   
+}
 
 // Structure to store all information about a chunk
 typedef struct chunk
