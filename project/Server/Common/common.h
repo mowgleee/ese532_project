@@ -44,7 +44,7 @@
 extern int offset;
 extern unsigned char* file;
 extern stopwatch bit_pack_timer;
-extern stopwatch kernel_timer;
+// extern stopwatch kernel_timer;
 
 #define VERB_LOW 0
 #define VERB_MED 1

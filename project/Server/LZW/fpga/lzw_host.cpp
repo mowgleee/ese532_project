@@ -33,7 +33,7 @@
 //         Exit_with_error("fclose for Load_data failed");
 // }
 
-void lzw_host(unsigned char* s1, chunk* cptr, bool first_itr)
+void lzw_host(unsigned char* s1, chunk* cptr)
 {   
     // unsigned char *Input = (unsigned char *)malloc(FRAMES_NEW * INPUT_FRAME_SIZE);
     // unsigned char *Output = (unsigned char *)malloc(FRAMES_NEW * OUTPUT_FRAME_SIZE);
@@ -119,6 +119,8 @@ void lzw_host(unsigned char* s1, chunk* cptr, bool first_itr)
 
     std::vector<cl::Event> write_events;
     // kernel_total_time.start();
+
+    stopwatch kernel_timer;
     
     // for (int i = 0; i < FRAMES_NEW; i++)
     // {
@@ -133,15 +135,15 @@ void lzw_host(unsigned char* s1, chunk* cptr, bool first_itr)
         lzw_kernel.setArg(2, output_buf);
         lzw_kernel.setArg(3, output_size_buf);
         
-        if(first_itr) {
+        // if(first_itr) {
             q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
             // q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
-        } else {
-            q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
+        // } else {
+        //     q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
         //     q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
         //     q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
         //     write_events.pop_back();
-        }
+        // }
         
         write_events.push_back(write_ev);
         q.enqueueTask(lzw_kernel, &write_events, &exec_ev);

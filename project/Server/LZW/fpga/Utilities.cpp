@@ -25,7 +25,7 @@ std::vector<cl::Device> get_xilinx_devices()
     err = platform.getDevices(CL_DEVICE_TYPE_ACCELERATOR, &devices);
     return devices;
 }
-   
+
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb) 
 {
     if(access(xclbin_file_name.c_str(), R_OK) != 0) {

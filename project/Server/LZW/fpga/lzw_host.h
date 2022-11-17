@@ -17,8 +17,7 @@
 // #include <vector>
 
 
-void lzw_host(unsigned char* s1, chunk* cptr, bool);
-
+void lzw_host(unsigned char* s1, chunk* cptr);
 
 // OCL_CHECK doesn't work if call has templatized function call
 #define OCL_CHECK(error, call)                                                 \
