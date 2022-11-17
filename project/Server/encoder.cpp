@@ -32,6 +32,7 @@ void compress(unsigned char *buffer, uint32_t length)
 
 	chunk *cptr = &curr_chunk;
 
+	bool first_itr = true;
 
 	while(curr_chunk.lower_bound < length)
 	{
@@ -58,7 +59,8 @@ void compress(unsigned char *buffer, uint32_t length)
 		if (curr_chunk.is_unique)
 		{
 			lzw_timer.start();
-			lzw_encoding(&buffer[curr_chunk.lower_bound], cptr);
+			// lzw_encoding(&buffer[curr_chunk.lower_bound], cptr);
+			lzw_host(&buffer[curr_chunk.lower_bound], cptr, first_itr);
 			lzw_timer.stop();
 		}
 
@@ -66,6 +68,8 @@ void compress(unsigned char *buffer, uint32_t length)
 
 		//std::cout<<"CHUNK COMPLETE\n\n\n";
 		makelog(VERB_DEBUG,"Chunk Complete");
+		
+		first_itr = false;
 	}
 }
 

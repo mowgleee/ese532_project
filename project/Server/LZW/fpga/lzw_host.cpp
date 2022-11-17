@@ -1,83 +1,70 @@
-#define CL_HPP_CL_1_2_DEFAULT_BUILD
-#define CL_HPP_TARGET_OPENCL_VERSION 120
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY 1
-#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#include "lzw_host.h"
+// void Store_data(const char *Filename, unsigned char *Data, unsigned int Size)
+// {
+//     FILE *File = fopen(Filename, "wb");
+//     if (File == NULL)
+//         Exit_with_error("fopen for Store_data failed");
 
-#define FRAMES_NEW 200
+//     if (fwrite(Data, 1, Size, File) != Size)
+//         Exit_with_error("fwrite for Store_data failed");
 
-#include <CL/cl2.hpp>
-#include <cstdint>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <unistd.h>
-#include <vector>
+//     if (fclose(File) != 0)
+//         Exit_with_error("fclose for Store_data failed");
+// }
 
-#include "Utilities.h"
-#include "Pipeline.h"
-#include "Stopwatch.h"
+// void Exit_with_error(const char *s)
+// {
+//     printf("%s\n", s);
+//     exit(EXIT_FAILURE);
+// }
 
-void Store_data(const char *Filename, unsigned char *Data, unsigned int Size)
-{
-    FILE *File = fopen(Filename, "wb");
-    if (File == NULL)
-        Exit_with_error("fopen for Store_data failed");
+// void Load_data(unsigned char *Data)
+// {
+//     unsigned int Size = FRAMES_NEW * INPUT_FRAME_SIZE;
 
-    if (fwrite(Data, 1, Size, File) != Size)
-        Exit_with_error("fwrite for Store_data failed");
+//     FILE *File = fopen("../data/Input.bin", "rb");
+//     if (File == NULL)
+//         Exit_with_error("fopen for Load_data failed");
 
-    if (fclose(File) != 0)
-        Exit_with_error("fclose for Store_data failed");
-}
+//     if (fread(Data, 1, Size, File) != Size)
+//         Exit_with_error("fread for Load_data failed");
 
-void Exit_with_error(const char *s)
-{
-    printf("%s\n", s);
-    exit(EXIT_FAILURE);
-}
+//     if (fclose(File) != 0)
+//         Exit_with_error("fclose for Load_data failed");
+// }
 
-void Load_data(unsigned char *Data)
-{
-    unsigned int Size = FRAMES_NEW * INPUT_FRAME_SIZE;
-
-    FILE *File = fopen("../data/Input.bin", "rb");
-    if (File == NULL)
-        Exit_with_error("fopen for Load_data failed");
-
-    if (fread(Data, 1, Size, File) != Size)
-        Exit_with_error("fread for Load_data failed");
-
-    if (fclose(File) != 0)
-        Exit_with_error("fclose for Load_data failed");
-}
-
-int main(int argc, char *argv[])
-{
-    int Size = 0;
+void lzw_host(unsigned char* s1, chunk* cptr, bool first_itr)
+{   
+    // unsigned char *Input = (unsigned char *)malloc(FRAMES_NEW * INPUT_FRAME_SIZE);
+    // unsigned char *Output = (unsigned char *)malloc(FRAMES_NEW * OUTPUT_FRAME_SIZE);
     
-    unsigned char *Input = (unsigned char *)malloc(FRAMES_NEW * INPUT_FRAME_SIZE);
-    unsigned char *Output = (unsigned char *)malloc(FRAMES_NEW * OUTPUT_FRAME_SIZE);
-    
-    if (Input == NULL)
-      Exit_with_error("malloc failed for Input");
+    // if (Input == NULL)
+    //   Exit_with_error("malloc failed for Input");
 
-    if (Output == NULL)
-      Exit_with_error("malloc failed for Output");
+    // if (Output == NULL)
+    //   Exit_with_error("malloc failed for Output");
     
-    unsigned char *Temp[STAGES - 1];
+    // unsigned char *Temp[STAGES - 1];
     
-    for (int i = 0; i < (STAGES - 1); i++) {
-    	Temp[i] = (unsigned char *)malloc(SCALED_FRAME_SIZE);
-    }
+    // for (int i = 0; i < (STAGES - 1); i++) {
+    // 	Temp[i] = (unsigned char *)malloc(SCALED_FRAME_SIZE);
+    // }
     
-    Load_data(Input);
+    // Load_data(Input);
+
+    unsigned char* output_from_fpga;
+    output_from_fpga = (unsigned char *)malloc(MAX_CHUNK_SIZE);
+
+    uint32_t output_size_from_fpga;
+
+    uint32_t* ptr_chunk_size = &cptr->size;
+    uint32_t* ptr_output_size = &output_size_from_fpga;
 
     // ------------------------------------------------------------------------------------
     // Step 1: Initialize the OpenCL environment
      // ------------------------------------------------------------------------------------
     cl_int err;
-    std::string binaryFile = argv[1];
+    std::string binaryFile = "lzw_kernel.xclbin";
     unsigned fileBufSize;
     std::vector<cl::Device> devices = get_xilinx_devices();
     devices.resize(1);
@@ -87,72 +74,99 @@ int main(int argc, char *argv[])
     cl::Program::Binaries bins{{fileBuf, fileBufSize}};
     cl::Program program(context, devices, bins, NULL, &err);
     cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
-    cl::Kernel Filter_HW(program, "Filter_HW", &err);
+    cl::Kernel lzw_kernel(program, "lzw_kernel", &err);
     
 
     // ------------------------------------------------------------------------------------
     // Step 2: Create buffers and initialize test values
     // ------------------------------------------------------------------------------------
 
-    size_t input_elements_per_iteration = SCALED_FRAME_SIZE;
-    size_t input_bytes_per_iteration = input_elements_per_iteration * sizeof(unsigned char);
     
-    size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
-    size_t output_bytes_per_iteration = output_elements_per_iteration * sizeof(unsigned char);
+    // size_t num_elements_in_chunk = cptr->size;
+    size_t input_chunk_bytes = cptr->size * sizeof(unsigned char);
+    
+    // size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
+    size_t output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
 
     cl::Buffer input_buf;
+    cl::Buffer input_size_buf;
     cl::Buffer output_buf;
+    cl::Buffer output_size_buf;
     
-    input_buf = cl::Buffer(context, CL_MEM_READ_ONLY, input_bytes_per_iteration, NULL, &err);
-    output_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, output_bytes_per_iteration, NULL, &err);
-    
-    Temp[0] = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_bytes_per_iteration);
-    Temp[1] = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_bytes_per_iteration);
+    // Creating buffer, CL_MEM_READ_ONLY since fpga is reading input from buffers
+    input_buf = cl::Buffer(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
 
-    stopwatch total_time;
+    // input_size_buf = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(uint32_t), NULL, &err); // Sending one variable of 32 bits
+
+    // Creating buffer, CL_MEM_WRITE_ONLY since fpga is writing output into buffers
+    output_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
+    output_size_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits
+    
+    // Connecting host data to OpenCL buffer, CL_MAP_WRITE since writing from host input to fpga buffer
+    s1 = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_chunk_bytes);
+
+    // ptr_chunk_size = (uint32_t*)q.enqueueMapBuffer(input_size_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(uint32_t));
+
+    // Connecting host data to OpenCL buffer, CL_MAP_READ since reading from fpga buffer to host
+    output_from_fpga = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_chunk_bytes);
+    ptr_output_size = (uint32_t*)q.enqueueMapBuffer(output_size_buf, CL_TRUE, CL_MAP_READ, 0, sizeof(uint32_t));
 
     // ------------------------------------------------------------------------------------
     // Step 3: Run the kernel
     // ------------------------------------------------------------------------------------
 
+    // void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
+
     std::vector<cl::Event> write_events;
-    // total_time.start();
+    // kernel_total_time.start();
     
-    for (int i = 0; i < FRAMES_NEW; i++)
-    {
-        total_time.start();
+    // for (int i = 0; i < FRAMES_NEW; i++)
+    // {
+        kernel_timer.start();
         std::vector<cl::Event> exec_events, read_events;
         cl::Event write_ev, exec_ev, read_ev;
         
-	    Scale_SW((Input + i * INPUT_FRAME_SIZE), Temp[0]);
+	    // Scale_SW((Input + i * INPUT_FRAME_SIZE), Temp[0]);
 	
-        Filter_HW.setArg(0, input_buf);
-        Filter_HW.setArg(1, output_buf);
+        lzw_kernel.setArg(0, input_buf);
+        lzw_kernel.setArg(1, cptr->size);
+        lzw_kernel.setArg(2, output_buf);
+        lzw_kernel.setArg(3, output_size_buf);
         
-        if(i == 0) {
+        if(first_itr) {
             q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
+            // q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
         } else {
             q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
-            write_events.pop_back();
+        //     q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
+        //     q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
+        //     write_events.pop_back();
         }
         
         write_events.push_back(write_ev);
-        q.enqueueTask(Filter_HW, &write_events, &exec_ev);
+        q.enqueueTask(lzw_kernel, &write_events, &exec_ev);
+        // q.enqueueTask(lzw_kernel, &write_ev, &exec_ev);
+
         exec_events.push_back(exec_ev);
-        q.enqueueMigrateMemObjects({output_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
+        q.enqueueMigrateMemObjects({output_buf, output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
+        // q.enqueueMigrateMemObjects({output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
+
+        // q.enqueueMigrateMemObjects({output_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_ev, &read_ev);
+        // q.enqueueMigrateMemObjects({output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_ev, &read_ev);
+        
         read_events.push_back(read_ev);
         
-        Differentiate_SW(Temp[1], Temp[2]);
-        Size = Compress_SW(Temp[2], Output);
-        total_time.stop();
+        // Differentiate_SW(Temp[1], Temp[2]);
+        // Size = Compress_SW(Temp[2], Output);
+        kernel_timer.stop();
 
-        Store_data("Output.bin", Output, Size);
-    }
+        // Store_data("Output.bin", Output, Size);
+    // }
 
     q.finish();
-    // total_time.stop();
-    std::cout << "Average latency: " << total_time.avg_latency() << std::endl;
-    std::cout << "Latency: " << total_time.latency() << std::endl;
+    // kernel_total_time.stop();
+    std::cout << "Average latency of lzw_hw_kernel: " << kernel_timer.avg_latency() << std::endl;
+    std::cout << "TOtal latency of lzw_kernel: " << kernel_timer.latency() << std::endl;
 
     // ------------------------------------------------------------------------------------
     // Step 4: Release Allocated Resources
@@ -161,8 +175,18 @@ int main(int argc, char *argv[])
     // free(Input);
     // free(Output);
 
-    delete[] fileBuf;
+    // delete[] fileBuf;
 
-    
-    return 0;
+    // uint32_t bytes_written = ceil(output_code_size*13.0/8.0);
+
+    // Writing chunk header to global file pointer
+	uint32_t chunk_header = (output_size_from_fpga << 1);
+	std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
+	memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
+	offset += sizeof(uint32_t);
+
+    // Writing compressed chunk reveived from fpga to global file pointer
+    memcpy(&file[offset], &output_from_fpga, sizeof(unsigned char));
+    offset+= sizeof(unsigned char);
+
 }

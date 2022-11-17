@@ -57,7 +57,7 @@ int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, int size, uint8_t* output_code_packed, uint64_t* output_code_size)
+void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
 {
 	uint32_t length = size;
 	uint32_t output_code[8192];
@@ -100,7 +100,7 @@ void lzw_kernel(unsigned char* input, int size, uint8_t* output_code_packed, uin
 
     // std::vector<int> output_code;
 
-	uint64_t op_idx = 0;
+	uint32_t op_idx = 0;
 	
     for (uint32_t i = 0; i < length; i++) {
         if (i != length - 1)

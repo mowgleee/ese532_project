@@ -59,7 +59,7 @@ void lzw_encoding(unsigned char* s1, chunk* cptr)
 	memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
 
-	for(int idx=0; idx<output_code.size(); idx++)
+	for(uint32_t idx=0; idx<output_code.size(); idx++)
 	{
 		curr_code = output_code[idx];
 		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);

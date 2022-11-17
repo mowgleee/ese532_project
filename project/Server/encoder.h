@@ -7,7 +7,8 @@
 #include "CDC/cdc.h"
 #include "SHA/sha.h"
 #include "Dedup/dedup.h"
-#include "LZW/lzw.h"
+#include "LZW/cpu/lzw.h"
+#include "LZW/fpga/lzw_host.h"
 
 int offset = 0;
 unsigned char* file = 0;
