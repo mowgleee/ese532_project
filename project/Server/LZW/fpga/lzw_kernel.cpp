@@ -57,12 +57,12 @@ int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
+void lzw_kernel(unsigned char* input, const uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
 {
-	#pragma INTERFACE m_axi port=input offset=slave bundle=p0
-	#pragma INTERFACE m_axi port=size offset=slave bundle=p0
-	#pragma INTERFACE m_axi port=output_code_packed offset=slave bundle=p1
-	#pragma INTERFACE m_axi port=output_code_size offset=slave bundle=p1
+	#pragma INTERFACE m_axi port=input offset=slave bundle=p0 depth=8000
+	#pragma INTERFACE s_axilite port=size bundle=control
+	#pragma INTERFACE m_axi port=output_code_packed offset=slave bundle=p1 depth=8000
+	#pragma INTERFACE m_axi port=output_code_size offset=slave bundle=p1 depth=10
 
 	uint32_t length = size;
 	uint32_t output_code[8192];
