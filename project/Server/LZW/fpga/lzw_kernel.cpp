@@ -62,6 +62,9 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	uint32_t length = size;
 	uint32_t output_code[8192];
 
+	std::cout<<"Size from host: " << length<< "\n";
+	std::cout<<"input: "<<input[0] <<input[1] <<input[2]<<"\n";
+
 	// lzw_code
 	uint64_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
 // #pragma HLS ARRAY_PARTITION variable = table block factor = 1024 //idk
@@ -139,6 +142,8 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	uint32_t write_byte_size = 0;//number of bytes to write
 	uint8_t write_byte = 0;//whats written in file
 
+	std::cout<<"\nOutput code byte: \n";
+
     for(int idx=0; idx < op_idx; idx++)
 	{
 		curr_code = output_code[idx];
@@ -150,6 +155,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 		{
 			write_byte = write_data>>(32-i*8);
             output_code_packed[offset_pack] = write_byte;
+			std::cout<<" "<< output_code_packed[offset_pack]<<"  ";
 			// memcpy(&file[offset], &write_byte, sizeof(unsigned char));
 			offset_pack += 1;
 		}
@@ -159,8 +165,10 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	if(rem_bits){
 		write_byte = old_byte>>24;
         output_code_packed[offset_pack] = write_byte;
+		std::cout<<" "<< output_code_packed[offset_pack]<<"  ";
         offset_pack +=1;
 	}
 
 	*output_code_size = op_idx;
+	std::cout<<"Output code size: "<< *output_code_size<<"\n";
 }

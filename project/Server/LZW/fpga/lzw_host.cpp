@@ -69,12 +69,21 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     std::vector<cl::Device> devices = get_xilinx_devices();
     devices.resize(1);
     cl::Device device = devices[0];
-    cl::Context context(device, NULL, NULL, NULL, &err);
+
+    OCL_CHECK(err, cl::Context context(device, NULL, NULL, NULL, &err));
+    // cl::Context context(device, NULL, NULL, NULL, &err);
+    
     char *fileBuf = read_binary_file(binaryFile, fileBufSize);
     cl::Program::Binaries bins{{fileBuf, fileBufSize}};
-    cl::Program program(context, devices, bins, NULL, &err);
-    cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
-    cl::Kernel lzw_kernel(program, "lzw_kernel", &err);
+
+    OCL_CHECK(err, cl::Program program(context, devices, bins, NULL, &err));
+    // cl::Program program(context, devices, bins, NULL, &err);
+
+    OCL_CHECK(err, cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
+    // cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err);
+    
+    OCL_CHECK(err, cl::Kernel lzw_kernel(program, "lzw_kernel", &err));
+    // cl::Kernel lzw_kernel(program, "lzw_kernel", &err);
     
 
     // ------------------------------------------------------------------------------------
@@ -88,28 +97,33 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     // size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
     size_t output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
 
-    cl::Buffer input_buf;
-    cl::Buffer input_size_buf;
-    cl::Buffer output_buf;
-    cl::Buffer output_size_buf;
+    OCL_CHECK(err, cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err));
+    // cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
+
+    // cl::Buffer input_size_buf;
+    OCL_CHECK(err, cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err));
+    // cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
+
+    OCL_CHECK(err, cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err););
+    // cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits;
     
     // Creating buffer, CL_MEM_READ_ONLY since fpga is reading input from buffers
-    input_buf = cl::Buffer(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
+//    // input_buf = cl::Buffer(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
 
     // input_size_buf = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(uint32_t), NULL, &err); // Sending one variable of 32 bits
 
     // Creating buffer, CL_MEM_WRITE_ONLY since fpga is writing output into buffers
-    output_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
-    output_size_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits
+//    // output_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
+//    // output_size_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits
     
     // Connecting host data to OpenCL buffer, CL_MAP_WRITE since writing from host input to fpga buffer
-    s1 = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_chunk_bytes);
+//    // s1 = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_chunk_bytes);
 
     // ptr_chunk_size = (uint32_t*)q.enqueueMapBuffer(input_size_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(uint32_t));
 
     // Connecting host data to OpenCL buffer, CL_MAP_READ since reading from fpga buffer to host
-    output_from_fpga = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_chunk_bytes);
-    ptr_output_size = (uint32_t*)q.enqueueMapBuffer(output_size_buf, CL_TRUE, CL_MAP_READ, 0, sizeof(uint32_t));
+//    // output_from_fpga = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_chunk_bytes);
+//    // ptr_output_size = (uint32_t*)q.enqueueMapBuffer(output_size_buf, CL_TRUE, CL_MAP_READ, 0, sizeof(uint32_t));
 
     // ------------------------------------------------------------------------------------
     // Step 3: Run the kernel
@@ -130,13 +144,21 @@ void lzw_host(unsigned char* s1, chunk* cptr)
         
 	    // Scale_SW((Input + i * INPUT_FRAME_SIZE), Temp[0]);
 	
-        lzw_kernel.setArg(0, input_buf);
-        lzw_kernel.setArg(1, cptr->size);
-        lzw_kernel.setArg(2, output_buf);
-        lzw_kernel.setArg(3, output_size_buf);
+        OCL_CHECK(err, err = lzw_kernel.setArg(0, input_buf));
+        OCL_CHECK(err, err = lzw_kernel.setArg(1, cptr->size));
+        OCL_CHECK(err, err = lzw_kernel.setArg(2, output_buf));
+        OCL_CHECK(err, err = lzw_kernel.setArg(3, output_size_buf));
+
+        // lzw_kernel.setArg(0, input_buf);
+        // lzw_kernel.setArg(1, cptr->size);
+        // lzw_kernel.setArg(2, output_buf);
+        // lzw_kernel.setArg(3, output_size_buf);
         
         // if(first_itr) {
-            q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
+
+            OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev));
+            // q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
+
             // q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, NULL, &write_ev);
         // } else {
         //     q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
@@ -144,18 +166,37 @@ void lzw_host(unsigned char* s1, chunk* cptr)
         //     q.enqueueMigrateMemObjects({input_size_buf}, 0 /* 0 means from host*/, &write_events, &write_ev);
         //     write_events.pop_back();
         // }
-        
+
         write_events.push_back(write_ev);
-        q.enqueueTask(lzw_kernel, &write_events, &exec_ev);
+
+        printf("Enqueueing the kernel.\n");
+        // This event needs to wait for the write buffer operations to complete
+        // before executing. We are sending the write_events into its wait list to
+        // ensure that the order of operations is correct.
+        //Launch the Kernel
+        // std::vector<cl::Event> waitList;
+        // waitList.push_back(write_event);
+
+        // q.enqueueNDRangeKernel(krnl_vadd, 0, 1, 1, &waitList, &kernel_events[flag]);
+
+        OCL_CHECK(err, err = q.enqueueTask(lzw_kernel, &write_events, &exec_ev));
+        // q.enqueueTask(lzw_kernel, &write_events, &exec_ev);
+
         // q.enqueueTask(lzw_kernel, &write_ev, &exec_ev);
 
         exec_events.push_back(exec_ev);
-        q.enqueueMigrateMemObjects({output_buf, output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
+
+        OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf, output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev));
+        // q.enqueueMigrateMemObjects({output_buf, output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
+
         // q.enqueueMigrateMemObjects({output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev);
 
         // q.enqueueMigrateMemObjects({output_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_ev, &read_ev);
         // q.enqueueMigrateMemObjects({output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_ev, &read_ev);
         
+        OCL_CHECK(err, err = read_ev.wait());
+        // read_ev.wait();
+
         read_events.push_back(read_ev);
         
         // Differentiate_SW(Temp[1], Temp[2]);
@@ -166,6 +207,15 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     // }
 
     q.finish();
+
+    std::cout << "Output size received from kernel: " << output_size_from_fpga << std::endl;
+
+    std::cout << "Data received from kernel: ";
+    for(uint32_t i = 0; i < 10; i++) {
+        std::cout << output_from_fpga[i];
+    }
+    std::cout << "\n";
+
     // kernel_total_time.stop();
     std::cout << "Average latency of lzw_hw_kernel: " << kernel_timer.avg_latency() << std::endl;
     std::cout << "TOtal latency of lzw_kernel: " << kernel_timer.latency() << std::endl;
@@ -188,7 +238,7 @@ void lzw_host(unsigned char* s1, chunk* cptr)
 	offset += sizeof(uint32_t);
 
     // Writing compressed chunk reveived from fpga to global file pointer
-    memcpy(&file[offset], &output_from_fpga, sizeof(unsigned char));
-    offset+= sizeof(unsigned char);
+    memcpy(&file[offset], output_from_fpga, output_size_from_fpga);
+    offset+= output_size_from_fpga;
 
 }
