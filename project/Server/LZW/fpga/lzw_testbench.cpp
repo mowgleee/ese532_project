@@ -66,7 +66,7 @@ int main()
     string s = "abc";
     unsigned char s_char[4] = "abc";
     uint8_t hw_output_code[8096]={0};
-    uint64_t output_code_size = 0;
+    uint32_t output_code_size = 0;
 
     lzw_kernel(s_char, 4, hw_output_code, &output_code_size);
     vector<int> sw_output_code = lzw_SW(s);
