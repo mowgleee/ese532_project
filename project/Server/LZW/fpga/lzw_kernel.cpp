@@ -1,6 +1,6 @@
 #include "lzw_kernel.h"
 
-unsigned int MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
+uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
 
 	// Naive implementation default seed
 	unsigned int seed = 1;
@@ -47,7 +47,7 @@ unsigned int MurmurHash2(const unsigned char * key, int len/*, unsigned int seed
 	return h;
 }
 
-int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
+int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val)
 {
 	for(uint64_t i = 0; i < length; i++)
 	{
@@ -57,25 +57,45 @@ int64_t search(uint64_t* table, uint64_t length, uint64_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, const uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
+void lzw_kernel(unsigned char* input, int size, uint32_t* output_code, uint32_t* output_code_size)
 {
-	#pragma INTERFACE m_axi port=input offset=slave bundle=p0 depth=8000
-	#pragma INTERFACE s_axilite port=size bundle=control
-	#pragma INTERFACE m_axi port=output_code_packed offset=slave bundle=p1 depth=8000
-	#pragma INTERFACE m_axi port=output_code_size offset=slave bundle=p1 depth=10
+
+#pragma HLS INTERFACE m_axi port=input bundle=p0 depth= 8192
+// #pragma HLS INTERFACE m_axi port=size  depth=100
+#pragma HLS INTERFACE m_axi port=output_code bundle=p1 depth= 8192
+// #pragma HLS INTERFACE m_axi port=output_code_size depth =100
+
+// #pragma HLS INTERFACE s_axilite port=output_code bundle=a
+
+//     lzw_encoding(input, cptr);
+// }
+
+// void lzw_encoding(unsigned char* input, chunk* cptr)
+// {
 
 	uint32_t length = size;
-	uint32_t output_code[8192];
 
-	std::cout<<"Size from host: " << length<< "\n";
-	std::cout<<"input: "<<input[0] <<input[1] <<input[2]<<"\n";
+	std::cout<<"input: "<<input[0]<<input[1]<<input[2]<<"\n";
 
+	/*
+	static uint32_t total_length_compressed = 0;
+	static uint32_t total_length_uncompressed = 0;
+	total_length_uncompressed += length;
+	
+	std::cout<<"length of chunk: "<<length<<"\n";
+	*/
+
+    // std::cout << "Encoding\n";
+
+	// Convert to memory map
+	// std::unordered_map<std::string, int> table;
+    
 	// lzw_code
-	uint64_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
+	uint32_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
 // #pragma HLS ARRAY_PARTITION variable = table block factor = 1024 //idk
 
 	// lzw_code resetValue = 0;
-	uint64_t resetValue = 0;
+	uint32_t resetValue = 0;
 
 	// Use while loop and reset for multiple chunks
 	// Reset dictionary
@@ -85,9 +105,9 @@ void lzw_kernel(unsigned char* input, const uint32_t size, uint8_t* output_code_
 		table[i] = resetValue;
 	}
 
-	uint64_t hash_val;
+	uint32_t hash_val;
 	uint8_t ch = 0;
-	uint64_t code = 0;
+	uint32_t code = 0;
 
     for (code = 0; code <= 255; code++) {
 #pragma HLS PIPELINE II = 1
@@ -102,12 +122,13 @@ void lzw_kernel(unsigned char* input, const uint32_t size, uint8_t* output_code_
     // std::string p = "", c = "";
 	uint8_t c;
 	uint8_t p[MAX_NUM_OF_CODES] = {0};
-	uint64_t p_idx = 0;
+	uint32_t p_idx = 0;
 
     p[p_idx++] = input[0];
 
     // std::vector<int> output_code;
 
+	// uint64_t output_code[MAX_NUM_OF_CODES];
 	uint32_t op_idx = 0;
 	
     for (uint32_t i = 0; i < length; i++) {
@@ -120,60 +141,34 @@ void lzw_kernel(unsigned char* input, const uint32_t size, uint8_t* output_code_
 		// Search algorithm for the array
 
 		hash_val = MurmurHash2(p, p_idx);
-		int64_t match = search(table, code, hash_val);
+		int32_t match = search(table, code, hash_val);
 
         if (match < 0/*table.find(p + c) != table.end()*/) {			// Change the find function
+            // p = p + c;
+			//p_idx--;//c is here
+            // cout << p << "\t" << table[p] << "\t\t"
+            //      << p + c << "\t" << code << endl;
+            // output_code.push_back(table[p]);
 			output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx - 1));
+
+            // table[p + c] = code;
 			table[code] = hash_val;
+			
             code++;
+            // p = c;
 			p_idx = 0;
 			p[p_idx++] = c;
         }
+//        c = '\0';
     }
+
+    // cout << p << "\t" << table[p] << endl;
+    // output_code.push_back(table[p]);
 	output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx-1));
-	// std::bitset<13> y(output_code[op_idx-1]);
-	// std::cout<<"Out Byte in HW: "<<y<<"\n";
 
-
-
-	/////////////////////////////////////////////////////////////
-    uint32_t offset_pack = 0;
-
-    uint32_t curr_code = 0;
-	uint32_t write_data = 0;
-	uint32_t old_byte = 0;
-	uint32_t rem_bits = 0;
-	uint32_t running_bits = 0;
-	uint32_t write_byte_size = 0;//number of bytes to write
-	uint8_t write_byte = 0;//whats written in file
-
-	std::cout<<"\nOutput code byte: \n";
-
-    for(int idx=0; idx < op_idx; idx++)
-	{
-		curr_code = output_code[idx];
-		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
-		write_data |= old_byte;
-		running_bits = rem_bits + (int)CODE_LENGTH;
-		write_byte_size = running_bits/8;
-		for (uint32_t i=1; i<=write_byte_size; i++)
-		{
-			write_byte = write_data>>(32-i*8);
-            output_code_packed[offset_pack] = write_byte;
-			std::cout<<" "<< output_code_packed[offset_pack]<<"  ";
-			// memcpy(&file[offset], &write_byte, sizeof(unsigned char));
-			offset_pack += 1;
-		}
-		old_byte = write_data<<(write_byte_size*8);
-		rem_bits = running_bits - write_byte_size*8;
-	}
-	if(rem_bits){
-		write_byte = old_byte>>24;
-        output_code_packed[offset_pack] = write_byte;
-		std::cout<<" "<< output_code_packed[offset_pack]<<"  ";
-        offset_pack +=1;
-	}
+	// output_code_packed = output_code;
+	
 
 	*output_code_size = op_idx;
-	std::cout<<"Output code size: "<< *output_code_size<<"\n";
+	std::cout<<"out code size: "<<*output_code_size<<"\n";
 }
