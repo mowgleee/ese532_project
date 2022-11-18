@@ -31,7 +31,9 @@ Bitpack Latency: 0.31592ms)	AVG: 0.0210613 ms<br />
 Output Throughput from Encoder: 13.4962 Mb/s. (Latency: 0.00844506s).<br />
 
 
-*LittlePrince.txt after SHA Neon and no prints
+* LittlePrince.txt after SHA Neon and no prints
+
+
 write file with 4220 = 4.12KB <br />
 --------------- Key Throughputs ---------------<br />
 Input Throughput to Encoder: 2487.47 Mb/s. (Latency: 4.582e-05s).<br />
