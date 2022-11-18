@@ -1,37 +1,4 @@
 #include "lzw_host.h"
-// void Store_data(const char *Filename, unsigned char *Data, unsigned int Size)
-// {
-//     FILE *File = fopen(Filename, "wb");
-//     if (File == NULL)
-//         Exit_with_error("fopen for Store_data failed");
-
-//     if (fwrite(Data, 1, Size, File) != Size)
-//         Exit_with_error("fwrite for Store_data failed");
-
-//     if (fclose(File) != 0)
-//         Exit_with_error("fclose for Store_data failed");
-// }
-
-// void Exit_with_error(const char *s)
-// {
-//     printf("%s\n", s);
-//     exit(EXIT_FAILURE);
-// }
-
-// void Load_data(unsigned char *Data)
-// {
-//     unsigned int Size = FRAMES_NEW * INPUT_FRAME_SIZE;
-
-//     FILE *File = fopen("../data/Input.bin", "rb");
-//     if (File == NULL)
-//         Exit_with_error("fopen for Load_data failed");
-
-//     if (fread(Data, 1, Size, File) != Size)
-//         Exit_with_error("fread for Load_data failed");
-
-//     if (fclose(File) != 0)
-//         Exit_with_error("fclose for Load_data failed");
-// }
 
 void lzw_host(unsigned char* s1, chunk* cptr)
 {   
@@ -52,20 +19,21 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     
     // Load_data(Input);
 
-    unsigned char* input_to_fpga = new unsigned char[cptr->size];
-    // input_to_fpga = (unsigned char*)malloc(cptr->size);
+    // size_t num_elements_in_chunk = cptr->size;
+    size_t input_chunk_bytes = cptr->size * sizeof(unsigned char);
+    
+    // size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
+    size_t output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
 
+    unsigned char* input_to_fpga = (unsigned char *)calloc(cptr->size, sizeof(unsigned char));
     memcpy(input_to_fpga, s1, cptr->size);
 
-    unsigned char* output_from_fpga = new unsigned char[MAX_CHUNK_SIZE];
-    // output_from_fpga = (unsigned char *)malloc(MAX_CHUNK_SIZE);
+    unsigned char* output_from_fpga = (unsigned char *)calloc(MAX_CHUNK_SIZE, sizeof(unsigned char));
 
-    // uint32_t output_size_from_fpga;
 
-    uint32_t* ptr_chunk_size = &cptr->size;
-    // uint32_t* ptr_output_size = &output_size_from_fpga;
-    uint32_t* ptr_output_size;
-    ptr_output_size = new uint32_t[1];
+    // uint32_t* ptr_chunk_size = &cptr->size;
+
+    uint32_t* ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
 
     // ------------------------------------------------------------------------------------
     // Step 1: Initialize the OpenCL environment
@@ -97,21 +65,14 @@ void lzw_host(unsigned char* s1, chunk* cptr)
     // Step 2: Create buffers and initialize test values
     // ------------------------------------------------------------------------------------
 
-    
-    // size_t num_elements_in_chunk = cptr->size;
-    size_t input_chunk_bytes = cptr->size * sizeof(unsigned char);
-    
-    // size_t output_elements_per_iteration = OUTPUT_FRAME_SIZE;
-    size_t output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
-
-    OCL_CHECK(err, cl::Buffer input_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_chunk_bytes, input_to_fpga, &err));
+    OCL_CHECK(err, cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err));
     // cl::Buffer input_buf(context, CL_MEM_READ_ONLY, input_chunk_bytes, NULL, &err);
 
     // cl::Buffer input_size_buf;
-    OCL_CHECK(err, cl::Buffer output_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_chunk_bytes, output_from_fpga, &err));
+    OCL_CHECK(err, cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err));
     // cl::Buffer output_buf(context, CL_MEM_WRITE_ONLY, output_chunk_bytes, NULL, &err);
 
-    OCL_CHECK(err, cl::Buffer output_size_buf(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size, &err););
+    OCL_CHECK(err, cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err););
     // cl::Buffer output_size_buf(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits;
     
     // Creating buffer, CL_MEM_READ_ONLY since fpga is reading input from buffers
@@ -124,13 +85,13 @@ void lzw_host(unsigned char* s1, chunk* cptr)
 //    // output_size_buf = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t), NULL, &err); // Receiving one variable of 32 bits
     
     // Connecting host data to OpenCL buffer, CL_MAP_WRITE since writing from host input to fpga buffer
-//    // s1 = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_chunk_bytes);
+    input_to_fpga = (unsigned char*)q.enqueueMapBuffer(input_buf, CL_TRUE, CL_MAP_WRITE, 0, input_chunk_bytes);
 
     // ptr_chunk_size = (uint32_t*)q.enqueueMapBuffer(input_size_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(uint32_t));
 
     // Connecting host data to OpenCL buffer, CL_MAP_READ since reading from fpga buffer to host
-//    // output_from_fpga = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_chunk_bytes);
-//    // ptr_output_size = (uint32_t*)q.enqueueMapBuffer(output_size_buf, CL_TRUE, CL_MAP_READ, 0, sizeof(uint32_t));
+    output_from_fpga = (unsigned char*)q.enqueueMapBuffer(output_buf, CL_TRUE, CL_MAP_READ, 0, output_chunk_bytes);
+    ptr_output_size = (uint32_t*)q.enqueueMapBuffer(output_size_buf, CL_TRUE, CL_MAP_READ, 0, sizeof(uint32_t));
 
     // ------------------------------------------------------------------------------------
     // Step 3: Run the kernel
