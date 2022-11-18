@@ -57,12 +57,12 @@ int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, uint32_t size, uint32_t* output_code, uint32_t* output_code_size)
+void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed, uint32_t* output_code_size)
 {
 
 #pragma HLS INTERFACE m_axi port=input bundle=p0 depth= 8192
 // #pragma HLS INTERFACE m_axi port=size  depth=100
-#pragma HLS INTERFACE m_axi port=output_code bundle=p1 depth= 8192
+#pragma HLS INTERFACE m_axi port=output_code_packed bundle=p1 depth= 8192
 // #pragma HLS INTERFACE m_axi port=output_code_size depth =100
 
 // #pragma HLS INTERFACE s_axilite port=output_code bundle=a
@@ -74,6 +74,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint32_t* output_code, uint
 // {
 
 	uint32_t length = size;
+	uint32_t output_code[8192];
 
 	std::cout<<"input: "<<input[0]<<input[1]<<input[2]<<"\n";
 
@@ -167,8 +168,44 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint32_t* output_code, uint
 	output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx-1));
 
 	// output_code_packed = output_code;
+
+
+
+	/////////////////////////////////////////////////////////////
+    uint32_t offset_pack = 0;
+
+    uint32_t curr_code = 0;
+	uint32_t write_data = 0;
+	uint32_t old_byte = 0;
+	uint32_t rem_bits = 0;
+	uint32_t running_bits = 0;
+	uint32_t write_byte_size = 0;//number of bytes to write
+	uint8_t write_byte = 0;//whats written in file
+
+    for(int idx=0; idx < op_idx; idx++)
+	{
+		curr_code = output_code[idx];
+		write_data = curr_code<<(32 - (int)CODE_LENGTH - rem_bits);
+		write_data |= old_byte;
+		running_bits = rem_bits + (int)CODE_LENGTH;
+		write_byte_size = running_bits/8;
+		for (uint32_t i=1; i<=write_byte_size; i++)
+		{
+			write_byte = write_data>>(32-i*8);
+            output_code_packed[offset_pack] = write_byte;
+			// memcpy(&file[offset], &write_byte, sizeof(unsigned char));
+			offset_pack += 1;
+		}
+		old_byte = write_data<<(write_byte_size*8);
+		rem_bits = running_bits - write_byte_size*8;
+	}
+	if(rem_bits){
+		write_byte = old_byte>>24;
+        output_code_packed[offset_pack] = write_byte;
+        offset_pack +=1;
+	}
 	
 
-	*output_code_size = op_idx;
+	*output_code_size = offset_pack;
 	std::cout<<"out code size: "<<*output_code_size<<"\n";
 }
