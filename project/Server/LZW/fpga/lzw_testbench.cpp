@@ -5,6 +5,7 @@ using namespace std;
 
 vector<int> lzw_SW(string s1)
 {
+    cout<<"\nsw length of string: "<<s1.length();
     cout << "Encoding\n";
     unordered_map<string, int> table;
     for (int i = 0; i <= 255; i++) {
@@ -21,6 +22,7 @@ vector<int> lzw_SW(string s1)
     for (int i = 0; i < s1.length(); i++) {
         if (i != s1.length() - 1)
             c += s1[i + 1];
+        
         if (table.find(p + c) != table.end()) {
             p = p + c;
         }
@@ -62,24 +64,24 @@ bool compare_outputs(uint8_t* sw_output_code, uint8_t *hw_output_code, uint32_t 
 
 int main()
 {
-    string s = "tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion.\"\nI pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One.";//"The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing.\nBoa\nIn the book it said: \"Boa constric";
+    string s = "abcd";//"tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion.\"\nI pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One.";//"The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing.\nBoa\nIn the book it said: \"Boa constric";
     // unsigned char s_char[3] = {'a','b','c'};
     // uint32_t hw_output_code[8096]={0};
     // uint32_t output_code_size = 0;
-    uint8_t* s_char = (uint8_t*)calloc(323,sizeof(uint8_t));
+    uint8_t* s_char = (uint8_t*)calloc(4,sizeof(uint8_t));
     uint8_t* hw_output_code = (uint8_t*)calloc(8096, sizeof(uint8_t));
     // s_char[0] = 'a';
     // s_char[1] = 'b';
     // s_char[2] = 'c';
 
-    for(int i = 0; i < 323; i++)
+    for(int i = 0; i < 4; i++)
     {
         s_char[i] = s[i];
     }
 
     uint32_t* output_code_size = (uint32_t*)calloc(1,sizeof(uint32_t));
 
-    lzw_kernel(s_char, 323, hw_output_code, output_code_size);
+    lzw_kernel(s_char, 4, hw_output_code, output_code_size);
     vector<int> sw_output_code = lzw_SW(s);
     cout << endl;
     std::cout<<"\n\n no of codes from SW: "<<sw_output_code.size()<<"\n";

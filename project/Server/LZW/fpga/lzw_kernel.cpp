@@ -77,7 +77,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	uint32_t length = size;
 	uint32_t output_code[8192];
 
-	std::cout<<"input: "<<input[0]<<input[1]<<input[2]<<"\n";
+	// std::cout<<"input: "<<input[0]<<input[1]<<input[2]<<"\n";
 
 	// lzw_code
 	uint64_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
@@ -113,19 +113,22 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	uint8_t p[MAX_NUM_OF_CODES] = {0};
 	uint32_t p_idx = 0;
 
-    p[p_idx++] = input[0];
+    p[p_idx] = input[0];
+	p_idx++;
 
     // std::vector<int> output_code;
 
 	// uint64_t output_code[MAX_NUM_OF_CODES];
 	uint32_t op_idx = 0;
 	
-    for (uint32_t i = 0; i < length; i++) {
-        if (i != length - 1)
-		{
+	// std::cout << "HARDWARE String\tOutput_Code\tAddition\n";
+    for (uint32_t i = 0; i < length - 1; i++) {
+        // if (i != length - 1)
+		// {
             c = input[i + 1];
-            p[p_idx++] = c;
-		}
+            p[p_idx] = c;
+			p_idx++;
+		// }
 
 		// Search algorithm for the array
 
@@ -138,7 +141,10 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
             // cout << p << "\t" << table[p] << "\t\t"
             //      << p + c << "\t" << code << endl;
             // output_code.push_back(table[p]);
-			output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx - 1));
+			// std::cout << p << "\t" << table[p] << "\t\t"
+			// << p + c << "\t" << code << endl;
+			output_code[op_idx] = search(table, code, MurmurHash2((void*)p, p_idx - 1));
+			op_idx++;
 
             // table[p + c] = code;
 			table[code] = hash_val;
@@ -146,18 +152,46 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
             code++;
             // p = c;
 			p_idx = 0;
-			p[p_idx++] = c;
+			p[p_idx] = c;
+			p_idx++;
         }
 //        c = '\0';
     }
 
     // cout << p << "\t" << table[p] << endl;
     // output_code.push_back(table[p]);
-	output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx));
+		// input[]
+		hash_val = MurmurHash2((void*)p, p_idx);
+		int32_t match = search(table, code, hash_val);
 
+        if (match < 0/*table.find(p + c) != table.end()*/) {			// Change the find function
+            // p = p + c;
+			//p_idx--;//c is here
+            // cout << p << "\t" << table[p] << "\t\t"
+            //      << p + c << "\t" << code << endl;
+            // output_code.push_back(table[p]);
+			// std::cout << p << "\t" << table[p] << "\t\t"
+			// << p + c << "\t" << code << endl;
+			output_code[op_idx] = search(table, code, MurmurHash2((void*)p, p_idx - 1));
+			op_idx++;
+
+            // table[p + c] = code;
+			table[code] = hash_val;
+			
+            code++;
+            // p = c;
+			p_idx = 0;
+			c = input[length];
+			p[p_idx] = c;
+			p_idx++;
+        }
+
+	// std::cout<<"last p_idx and p[p_idx]"<<p_idx<<"\t"<<p[p_idx];
+	output_code[op_idx] = search(table, code, MurmurHash2((void*)p, p_idx));
+
+	
+	op_idx++;
 	std::cout<<"\n\n no of codes from hw: "<<op_idx<<"\n";
-	op_idx--;
-
 	// output_code_packed = output_code;
 
 
@@ -198,5 +232,5 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 	
 
 	*output_code_size = offset_pack;
-	std::cout<<"out code size: "<<*output_code_size<<"\n";
+	// std::cout<<"out code size: "<<*output_code_size<<"\n";
 }
