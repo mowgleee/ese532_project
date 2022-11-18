@@ -30,6 +30,21 @@ LZW Latency: 6.06583ms)	AVG: 0.404389 ms<br />
 Bitpack Latency: 0.31592ms)	AVG: 0.0210613 ms<br />
 Output Throughput from Encoder: 13.4962 Mb/s. (Latency: 0.00844506s).<br />
 
+
+* LittlePrince.txt after SHA Neon and no prints
+
+
+write file with 4220 = 4.12KB <br />
+--------------- Key Throughputs ---------------<br />
+Input Throughput to Encoder: 2487.47 Mb/s. (Latency: 4.582e-05s).<br />
+CDC Latency: 0.18996ms	AVG: 0.00333263 ms<br />
+SHA Latency: 0.28775ms	AVG: 0.00504825 ms<br />
+Chunk matching Latency: 0.09973ms	AVG: 0.00174965 ms<br />
+LZW Latency: 5.91974ms	AVG: 0.394649 ms<br />
+Bitpack Latency: 0.06459ms	AVG: 0.004306 ms<br />
+Output Throughput from Encoder: 17.3579 Mb/s. (Latency: 0.00656624s).<br />
+
+
 * Franklin.txt
 
 
