@@ -22,7 +22,7 @@
 
 uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/);
 int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val);
-void lzw_kernel(unsigned char* input, int size, /*std::vector<int>,*/ uint32_t* output_code_packed, uint32_t* output_code_size);
+void lzw_kernel(unsigned char* input, uint32_t size, /*std::vector<int>,*/ uint32_t* output_code_packed, uint32_t* output_code_size);
 
 
 #endif

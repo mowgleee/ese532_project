@@ -57,7 +57,7 @@ int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val)
 	return -1;
 }
 
-void lzw_kernel(unsigned char* input, int size, uint32_t* output_code, uint32_t* output_code_size)
+void lzw_kernel(unsigned char* input, uint32_t size, uint32_t* output_code, uint32_t* output_code_size)
 {
 
 #pragma HLS INTERFACE m_axi port=input bundle=p0 depth= 8192
