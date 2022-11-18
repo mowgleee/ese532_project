@@ -1,53 +1,5 @@
 #include "lzw_kernel.h"
 
-// uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
-
-// 	// Naive implementation default seed
-// 	unsigned int seed = 1;
-
-// 	const unsigned int m = 0x5bd1e995;
-
-// 	// Initialize the hash to a 'random' value
-
-// 	unsigned int h = seed ^ len;
-
-// 	// Mix 4 bytes at a time into the hash
-
-// 	const unsigned char * data = (const unsigned char *) key;
-	
-// 	 while (len >= 4)
-// 	 {
-// 	 	size_t k = data[len-1];
-// 	 	k *= m;
-// 	 	k ^= k >> 24;
-// 	 	k *= m;
-// 	 	h *= m;
-// 	 	h ^= k;
-// 	 	data += 4;
-// 	 	len -= 4;
-// 	 }
-
-// 	switch (len) {
-// 	case 3:
-// 		h ^= data[2] << 16;
-// 	case 2:
-// 		h ^= data[1] << 8;
-// 	case 1:
-// 		h ^= data[0];
-// 		h *= m;
-// 	};
-
-// 	// Do a few final mixes of the hash to ensure the last few
-// 	// bytes are well-incorporated.
-
-// 	h ^= h >> 13;
-// 	h *= m;
-// 	h ^= h >> 15;
-
-// 	return h;
-// }
-
-
 
 uint64_t MurmurHash2( const void * key, int len)
 {
@@ -201,7 +153,10 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 
     // cout << p << "\t" << table[p] << endl;
     // output_code.push_back(table[p]);
-	output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx-1));
+	output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx));
+
+	std::cout<<"\n\n no of codes from hw: "<<op_idx<<"\n";
+	op_idx--;
 
 	// output_code_packed = output_code;
 
