@@ -46,8 +46,15 @@ bool compare_outputs(uint8_t* sw_output_code, uint8_t *hw_output_code, uint32_t 
     {
         if(sw_output_code[i] != hw_output_code[i])
         {
-            cout<<"SW out code: "<<sw_output_code[i]<<" HW out code: "<<hw_output_code[i]<<'\n';
+            // cout<<"SW out code: "<<sw_output_code[i]<<" HW out code: "<<hw_output_code[i]<<'\n';
+            std::bitset<8> x(sw_output_code[i]);
+            std::bitset<8> y(hw_output_code[i]);
+            std::cout <<"SW out code: "<< x << " HW out code: " << y<<"\n";
             Equal = false;
+        }
+        else
+        {
+            std::cout<<"passed for iter: "<<i<<"\n";
         }
     }
     return Equal;
@@ -55,24 +62,24 @@ bool compare_outputs(uint8_t* sw_output_code, uint8_t *hw_output_code, uint32_t 
 
 int main()
 {
-    string s = "abc";// gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGabc gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGabc gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGabc gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGabc gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGabc gdgserge yy66ey   &&**Ggg *GGGGGGGGGGGGGGG";
+    string s = "The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing.\nBoa\nIn the book it said: \"Boa constric";
     // unsigned char s_char[3] = {'a','b','c'};
     // uint32_t hw_output_code[8096]={0};
     // uint32_t output_code_size = 0;
-    uint8_t* s_char = (uint8_t*)calloc(4,sizeof(uint8_t));
+    uint8_t* s_char = (uint8_t*)calloc(305,sizeof(uint8_t));
     uint8_t* hw_output_code = (uint8_t*)calloc(8096, sizeof(uint8_t));
     // s_char[0] = 'a';
     // s_char[1] = 'b';
     // s_char[2] = 'c';
 
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < 304; i++)
     {
         s_char[i] = s[i];
     }
 
     uint32_t* output_code_size = (uint32_t*)calloc(1,sizeof(uint32_t));
 
-    lzw_kernel(s_char, 4, hw_output_code, output_code_size);
+    lzw_kernel(s_char, 305, hw_output_code, output_code_size);
     vector<int> sw_output_code = lzw_SW(s);
     cout << endl;
 

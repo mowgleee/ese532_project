@@ -1,53 +1,102 @@
 #include "lzw_kernel.h"
 
-uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
+// uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/) {
 
-	// Naive implementation default seed
-	unsigned int seed = 1;
+// 	// Naive implementation default seed
+// 	unsigned int seed = 1;
 
-	const unsigned int m = 0x5bd1e995;
+// 	const unsigned int m = 0x5bd1e995;
 
-	// Initialize the hash to a 'random' value
+// 	// Initialize the hash to a 'random' value
 
-	unsigned int h = seed ^ len;
+// 	unsigned int h = seed ^ len;
 
-	// Mix 4 bytes at a time into the hash
+// 	// Mix 4 bytes at a time into the hash
 
-	const unsigned char * data = (const unsigned char *) key;
+// 	const unsigned char * data = (const unsigned char *) key;
 	
-	 while (len >= 4)
-	 {
-	 	size_t k = data[len-1];
-	 	k *= m;
-	 	k ^= k >> 24;
-	 	k *= m;
-	 	h *= m;
-	 	h ^= k;
-	 	data += 4;
-	 	len -= 4;
-	 }
+// 	 while (len >= 4)
+// 	 {
+// 	 	size_t k = data[len-1];
+// 	 	k *= m;
+// 	 	k ^= k >> 24;
+// 	 	k *= m;
+// 	 	h *= m;
+// 	 	h ^= k;
+// 	 	data += 4;
+// 	 	len -= 4;
+// 	 }
 
-	switch (len) {
-	case 3:
-		h ^= data[2] << 16;
-	case 2:
-		h ^= data[1] << 8;
-	case 1:
-		h ^= data[0];
-		h *= m;
-	};
+// 	switch (len) {
+// 	case 3:
+// 		h ^= data[2] << 16;
+// 	case 2:
+// 		h ^= data[1] << 8;
+// 	case 1:
+// 		h ^= data[0];
+// 		h *= m;
+// 	};
 
-	// Do a few final mixes of the hash to ensure the last few
-	// bytes are well-incorporated.
+// 	// Do a few final mixes of the hash to ensure the last few
+// 	// bytes are well-incorporated.
 
-	h ^= h >> 13;
-	h *= m;
-	h ^= h >> 15;
+// 	h ^= h >> 13;
+// 	h *= m;
+// 	h ^= h >> 15;
 
-	return h;
-}
+// 	return h;
+// }
 
-int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val)
+
+
+uint64_t MurmurHash2( const void * key, int len)
+{
+	uint64_t seed = 1;
+  	const uint64_t m = 0xc6a4a7935bd1e995;
+  	const int r = 47;
+
+	const uint64_t * data = (const uint64_t *)key;
+
+	uint64_t h = seed ^ (len * m);
+
+//   const uint64_t * data = (const uint64_t *)key;
+  const uint64_t * end = data + (len/8);
+
+  while(data != end)
+  {
+    uint64_t k = *data;
+	data++;
+
+    k *= m; 
+    k ^= k >> r; 
+    k *= m; 
+    
+    h ^= k;
+    h *= m; 
+  }
+
+  const unsigned char * data2 = (const unsigned char*)data;
+
+  switch(len & 7)
+  {
+  case 7: h ^= uint64_t(data2[6]) << 48;
+  case 6: h ^= uint64_t(data2[5]) << 40;
+  case 5: h ^= uint64_t(data2[4]) << 32;
+  case 4: h ^= uint64_t(data2[3]) << 24;
+  case 3: h ^= uint64_t(data2[2]) << 16;
+  case 2: h ^= uint64_t(data2[1]) << 8;
+  case 1: h ^= uint64_t(data2[0]);
+          h *= m;
+  };
+ 
+  h ^= h >> r;
+  h *= m;
+  h ^= h >> r;
+
+  return h;
+} 
+
+int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
 {
 	for(uint64_t i = 0; i < length; i++)
 	{
@@ -78,25 +127,12 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 
 	std::cout<<"input: "<<input[0]<<input[1]<<input[2]<<"\n";
 
-	/*
-	static uint32_t total_length_compressed = 0;
-	static uint32_t total_length_uncompressed = 0;
-	total_length_uncompressed += length;
-	
-	std::cout<<"length of chunk: "<<length<<"\n";
-	*/
-
-    // std::cout << "Encoding\n";
-
-	// Convert to memory map
-	// std::unordered_map<std::string, int> table;
-    
 	// lzw_code
-	uint32_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
+	uint64_t table[MAX_NUM_OF_CODES]; // index i is the value and value stored is the hash of that substring
 // #pragma HLS ARRAY_PARTITION variable = table block factor = 1024 //idk
 
 	// lzw_code resetValue = 0;
-	uint32_t resetValue = 0;
+	uint64_t resetValue = 0;
 
 	// Use while loop and reset for multiple chunks
 	// Reset dictionary
@@ -106,7 +142,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 		table[i] = resetValue;
 	}
 
-	uint32_t hash_val;
+	uint64_t hash_val;
 	uint8_t ch = 0;
 	uint32_t code = 0;
 
@@ -115,7 +151,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 #pragma HLS UNROLL FACTOR = 2
         ch = char(code);
         // ch += char(i);
-		hash_val = MurmurHash2(&ch, 1/*Default single character length*/);
+		hash_val = MurmurHash2((void*)&ch, 1/*Default single character length*/);
         // table[ch] = i;
 		table[code] = hash_val;
     }
@@ -141,7 +177,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 
 		// Search algorithm for the array
 
-		hash_val = MurmurHash2(p, p_idx);
+		hash_val = MurmurHash2((void*)p, p_idx);
 		int32_t match = search(table, code, hash_val);
 
         if (match < 0/*table.find(p + c) != table.end()*/) {			// Change the find function
@@ -150,7 +186,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
             // cout << p << "\t" << table[p] << "\t\t"
             //      << p + c << "\t" << code << endl;
             // output_code.push_back(table[p]);
-			output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx - 1));
+			output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx - 1));
 
             // table[p + c] = code;
 			table[code] = hash_val;
@@ -165,7 +201,7 @@ void lzw_kernel(unsigned char* input, uint32_t size, uint8_t* output_code_packed
 
     // cout << p << "\t" << table[p] << endl;
     // output_code.push_back(table[p]);
-	output_code[op_idx++] = search(table, code, MurmurHash2(p, p_idx-1));
+	output_code[op_idx++] = search(table, code, MurmurHash2((void*)p, p_idx-1));
 
 	// output_code_packed = output_code;
 

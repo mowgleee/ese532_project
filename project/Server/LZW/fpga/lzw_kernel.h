@@ -20,8 +20,8 @@
 
 #define CODE_LENGTH 13
 
-uint32_t MurmurHash2(const unsigned char * key, int len/*, unsigned int seed*/);
-int32_t search(uint32_t* table, uint32_t length, uint32_t hash_val);
+uint64_t MurmurHash64( const unsigned char * data, int len);
+int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val);
 void lzw_kernel(unsigned char* input, uint32_t size, /*std::vector<int>,*/ uint8_t* output_code_packed, uint32_t* output_code_size);
 
 
