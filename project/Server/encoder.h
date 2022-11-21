@@ -15,7 +15,7 @@ unsigned char* file = 0;
 stopwatch bit_pack_timer;
 
 void handle_input(int argc, char* argv[], int* blocksize);
-void compress(unsigned char *buffer, uint32_t length);
+void compress(unsigned char *buffer, packet* pptr);
 
 
 #endif

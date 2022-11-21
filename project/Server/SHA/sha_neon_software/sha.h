@@ -10,6 +10,10 @@
 // #include <wolfssl/options.h>
 // #include <wolfssl/wolfcrypt/sha3.h>
 
+#define BLOCKSIZE 8192
+#define WIN_SIZE 16
+#define MIN_CHUNK_SIZE 16
+
 // Structure to store all information about a chunk
 typedef struct chunk
 {
@@ -20,6 +24,14 @@ typedef struct chunk
 	bool is_unique;
 	int num;
 }chunk;
+
+typedef struct packet
+{
+	uint32_t num = 0;
+	uint32_t size = 0;
+	uint32_t num_of_chunks = 0;
+	chunk curr_chunk[BLOCKSIZE/MIN_CHUNK_SIZE];
+}packet;
 
 static const uint32_t K[] =
 {
@@ -41,5 +53,5 @@ static const uint32_t K[] =
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
 };
 
-void sha(unsigned char* buff, chunk *cptr);
+void sha(unsigned char* buff, packet *pptr);
 void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length);

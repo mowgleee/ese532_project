@@ -33,6 +33,7 @@
 #define DONE_BIT_H (1 << 15)
 
 #define WIN_SIZE 16
+#define MIN_CHUNK_SIZE 16
 #define PRIME 3
 #define MODULUS 256
 #define TARGET 0
@@ -72,7 +73,15 @@ typedef struct chunk
 	uint32_t size = 0;
 	std::string sha;
 	bool is_unique;
-	int num;
+	uint32_t num;
 }chunk;
+
+typedef struct packet
+{
+	uint32_t num = 0;
+	uint32_t size = 0;
+	uint32_t num_of_chunks = 0;
+	chunk curr_chunk[BLOCKSIZE/MIN_CHUNK_SIZE];
+}packet;
 
 #endif

@@ -12,30 +12,36 @@ uint64_t hash_func(unsigned char *input, uint32_t pos)
 	return hash;
 }
 
-void cdc_eff(unsigned char *buff, chunk *cptr, uint32_t length)
+void cdc_eff(unsigned char *buff, packet* pptr)
 {
-	uint64_t hash = hash_func(buff, WIN_SIZE);
+	uint64_t hash = hash_func(buff, MIN_CHUNK_SIZE);
 	static const uint64_t pow_const = pow(PRIME, WIN_SIZE + 1);
 
-	for (int i = WIN_SIZE + 1; i < MAX_CHUNK_SIZE - WIN_SIZE; i++)
-	// for (int i = 1; i < MAX_CHUNK_SIZE; i++)
+	uint32_t length = pptr->size;
+	uint32_t chunk_num = 0;
+	pptr->curr_chunk[chunk_num].lower_bound = 0;
+	uint32_t chunk_size = MIN_CHUNK_SIZE;
+
+	for (uint32_t i = 0; i < length - MIN_CHUNK_SIZE; i=i)
 	{
-		// Check if condition is working
-		if (i - 1 + WIN_SIZE + cptr->lower_bound > length)
+		if(((hash % MODULUS) == TARGET))
 		{
-			cptr->upper_bound = length-1;
-			return;
+			pptr->curr_chunk[chunk_num].upper_bound = chunk_size  + pptr->curr_chunk[chunk_num].lower_bound;
+			pptr->curr_chunk[chunk_num].size = chunk_size;
+			chunk_size = MIN_CHUNK_SIZE;
+			chunk_num++;
+			pptr->curr_chunk[chunk_num].lower_bound = pptr->curr_chunk[chunk_num - 1].upper_bound + 1;
+			i = i + MIN_CHUNK_SIZE;
+			hash = hash_func(buff, i);
+			continue;
 		}
-
+		
 		hash = (hash * PRIME - (buff[i - 1] * pow_const) + (buff[i - 1 + WIN_SIZE] * PRIME));
-
-		if((hash % MODULUS) == TARGET)
-		{
-			cptr->upper_bound = i  + cptr->lower_bound;
-			return;
-		}
+		chunk_size+=1;
+		i=i+1;
 	}
-	// *starting_hash = hash;
-	cptr->upper_bound = MAX_CHUNK_SIZE + cptr->lower_bound;
+	pptr->curr_chunk[chunk_num].upper_bound = length;
+	pptr->curr_chunk[chunk_num].size = pptr->curr_chunk[chunk_num].upper_bound - pptr->curr_chunk[chunk_num].lower_bound;
+	pptr->num_of_chunks = chunk_num + 1;
 	return;
 }
