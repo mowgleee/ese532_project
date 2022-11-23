@@ -60,7 +60,40 @@ Bitpack Latency: 15.9523ms)	AVG: 0.0103318 ms<br />
 Output Throughput from Encoder: 4.62473 Mb/s. (Latency: 0.690902s)<br />
 
 
+Packet Level Granularity
+
+* LittlePrince.txt with SHA Neon and no prints and software LZW
+
+--------------- Key Throughputs ---------------<br />
+Input Throughput to Encoder: 4170.36 Mb/s. (Latency: 2.733e-05s). <br />
+CDC Latency: 0.12873ms	AVG: 0.064365 ms <br />
+SHA Latency: 0.1578ms	AVG: 0.0789 ms <br />
+Chunk matching Latency: 0.11822ms	AVG: 0.05911 ms <br />
+LZW Latency: 5.59005ms	AVG: 2.79503 ms <br />
+Bitpack Latency: 0.0689ms	AVG: 0.00459333 ms <br />
+Output Throughput from Encoder: 18.1656 Mb/s. (Latency: 0.00627429s).<br />
+Output Throughput from Encoder without LZW: 166.573 Mb/s. (Latency: 0.00068424s).<br />
+
+
+* Franklin.txt with SHA Neon, no prints and software LZW
+
+
+
+--------------- Key Throughputs ---------------<br />
+Input Throughput to Encoder: 2917.97 Mb/s. (Latency: 0.00109406s).<br />
+CDC Latency: 3.56341ms	AVG: 0.0727227 ms<br />
+SHA Latency: 2.39094ms	AVG: 0.0487947 ms<br />
+Chunk matching Latency: 2.13314ms	AVG: 0.0435335 ms<br />
+LZW Latency: 598.017ms	AVG: 12.2044 ms<br />
+Bitpack Latency: 8.02541ms	AVG: 0.00518437 ms<br />
+Output Throughput from Encoder: 5.24989 Mb/s. (Latency: 0.608095s).<br />
+Output Throughput from Encoder without LZW: 316.763 Mb/s. (Latency: 0.0100783s).<br />
+
+
 ## To Do Later
 * Check if we need to do rabin fingerprinting
 * Account for chunks across packet boundaries
 * Implement SHA on the NEON vector SIMD unit (Done)
+* Packet Level Granularity (Done)
+* Multithreading and Pipelining
+* Streaming in Kernel
