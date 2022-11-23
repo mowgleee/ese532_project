@@ -28,11 +28,13 @@ void cdc_eff(unsigned char *buff, packet* pptr)
 		if(((hash % MODULUS) == TARGET))
 		{
 			pptr->curr_chunk[chunk_num].upper_bound = chunk_size  + pptr->curr_chunk[chunk_num].lower_bound;
+			makelog(VERB_DEBUG,"Upper bound of chunk if equal to target %d \n", pptr->curr_chunk[chunk_num].upper_bound );
 			pptr->curr_chunk[chunk_num].size = chunk_size;
 			chunk_size = MIN_CHUNK_SIZE;
 			// Next chunk
 			chunk_num++;
 			pptr->curr_chunk[chunk_num].lower_bound = pptr->curr_chunk[chunk_num - 1].upper_bound + 1;
+			makelog(VERB_DEBUG,"Lower bound of chunk if equal to target %d \n", pptr->curr_chunk[chunk_num].lower_bound );
 			i = i + MIN_CHUNK_SIZE;
 			hash = hash_func(buff, i);
 			continue;
@@ -45,5 +47,8 @@ void cdc_eff(unsigned char *buff, packet* pptr)
 	pptr->curr_chunk[chunk_num].upper_bound = length;
 	pptr->curr_chunk[chunk_num].size = pptr->curr_chunk[chunk_num].upper_bound - pptr->curr_chunk[chunk_num].lower_bound;
 	pptr->num_of_chunks = chunk_num + 1;
+	makelog(VERB_DEBUG,"Upper bound of chunk %d \n", pptr->curr_chunk[chunk_num].upper_bound );
+	makelog(VERB_DEBUG,"Size  of chunk %d \n", pptr->curr_chunk[chunk_num].size );
+	makelog(VERB_DEBUG,"Num  of chunk %d \n", pptr->num_of_chunks );
 	return;
 }

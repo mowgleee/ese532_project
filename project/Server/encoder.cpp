@@ -25,7 +25,9 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 void compress(unsigned char *buffer, packet* pptr)
 {
 	cdc_eff_timer.start();
+	makelog(VERB_DEBUG,"CDC Timer started and entering CDC \n");
 	cdc_eff(&buffer[0], pptr);
+	makelog(VERB_DEBUG,"CDC exit succesfully and timer stop \n");
 	cdc_eff_timer.stop();
 
 	sha_timer.start();
@@ -114,8 +116,9 @@ int main(int argc, char* argv[]) {
 	packet* pptr = &curr_packet;
 	curr_packet.num = 0;
 	curr_packet.size = length;
-
+	makelog(VERB_DEBUG,"Entering Compress \n");
 	compress(&buffer[HEADER], pptr);
+	makelog(VERB_DEBUG,"Exit Compress Sucessfully \n");
 
 	writer++;
 
