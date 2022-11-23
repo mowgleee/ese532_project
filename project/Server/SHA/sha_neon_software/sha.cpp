@@ -224,6 +224,9 @@ void sha(uint8_t* buff, packet *pptr)//, wc_Sha3* sha3_384)
 {
     for(uint32_t chunk_num = 0; chunk_num < pptr->num_of_chunks; chunk_num++)
     {
+        //std::cout<<"Calculating SHA for chunk: "<<chunk_num<<"\n";
+        
+
         uint8_t shaChar[32]={0};
 
         // std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";

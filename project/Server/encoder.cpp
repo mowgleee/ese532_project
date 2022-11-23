@@ -112,6 +112,9 @@ int main(int argc, char* argv[]) {
 	total_input_size += length;
 	output_timer.start();
 
+	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
+	std::cout<<"packet to pointer \n";
+
 	packet curr_packet;
 	packet* pptr = &curr_packet;
 	curr_packet.num = 0;
@@ -170,9 +173,12 @@ int main(int argc, char* argv[]) {
 	std::cout << "--------------- Key Throughputs ---------------" << std::endl;
 	float ethernet_latency = ethernet_timer.latency() / 1000.0;
 	float output_latency = output_timer.latency() / 1000.0;//in sec
+	float op_latency_wo_lzw=(output_timer.latency()-lzw_timer.latency())/1000.0; //in sec
 
 	float input_throughput = (total_input_size * 8 / 1000000.0) / ethernet_latency; // Mb/s
 	float output_throughput = (total_input_size * 8 / 1000000.0) / output_latency;
+	float output_throughput_wo_lzw = (total_input_size * 8 / 1000000.0) / op_latency_wo_lzw;
+
 
 	std::cout << "Input Throughput to Encoder: " << input_throughput << " Mb/s."
 			<< " (Latency: " << ethernet_latency << "s)." << std::endl;
@@ -185,6 +191,8 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Output Throughput from Encoder: " << output_throughput << " Mb/s."
 			<< " (Latency: " << output_latency << "s)." << std::endl;
+	std::cout << "Output Throughput from Encoder without LZW: " << output_throughput_wo_lzw << " Mb/s."
+			<< " (Latency: " << op_latency_wo_lzw<< "s)." << std::endl;
 
 	return 0;
 }

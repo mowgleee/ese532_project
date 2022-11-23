@@ -74,6 +74,7 @@ typedef struct chunk
 	std::string sha;
 	bool is_unique;
 	uint32_t num;
+	uint32_t header = 0;
 }chunk;
 
 typedef struct packet
