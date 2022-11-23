@@ -8,11 +8,11 @@ void lzw_encoding(unsigned char *buff, packet* pptr)
 		{
 			unsigned char* s1 = &buff[pptr->curr_chunk[chunk_num].lower_bound];
 			uint32_t length = pptr->curr_chunk[chunk_num].size;
-			static uint32_t total_length_compressed=0;
-			static uint32_t total_length_uncompressed=0;
-			total_length_uncompressed += length;
+			// static uint32_t total_length_compressed=0;
+			// static uint32_t total_length_uncompressed=0;
+			// total_length_uncompressed += length;
 			
-			std::cout<<"length of chunk: "<<length<<"\n";
+			// std::cout<<"length of chunk: "<<length<<"\n";
 
 			// std::cout << "Encoding\n";
 			std::unordered_map<std::string, int> table;
@@ -57,8 +57,8 @@ void lzw_encoding(unsigned char *buff, packet* pptr)
 			uint32_t write_byte_size = 0;//number of bytes to write
 			uint8_t write_byte = 0;//whats written in file
 			uint32_t bytes_written = ceil(output_code_size*13.0/8.0);
-			total_length_compressed += bytes_written;
-			total_length_compressed += 4;
+			// total_length_compressed += bytes_written;
+			// total_length_compressed += 4;
 			uint32_t chunk_header = (bytes_written<<1);
 			std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
 			memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
@@ -91,8 +91,8 @@ void lzw_encoding(unsigned char *buff, packet* pptr)
 				offset+= sizeof(unsigned char);
 			}
 			bit_pack_timer.stop();
-			std::cout<<"RUNNING TOTAL BYTES(LZW): "<<total_length_compressed<<"\n";
-			std::cout<<"RUNNING TOTAL BYTES OF UNIQUE CHUNKS BEFORE COMPRESSION(LZW): "<<total_length_uncompressed<<"\n";
+			// std::cout<<"RUNNING TOTAL BYTES(LZW): "<<total_length_compressed<<"\n";
+			// std::cout<<"RUNNING TOTAL BYTES OF UNIQUE CHUNKS BEFORE COMPRESSION(LZW): "<<total_length_uncompressed<<"\n";
 		}
 	}
 }

@@ -18,17 +18,19 @@ void cdc_eff(unsigned char *buff, packet* pptr)
 	static const uint64_t pow_const = pow(PRIME, WIN_SIZE + 1);
 
 	uint32_t length = pptr->size;
+	// First chunk
 	uint32_t chunk_num = 0;
 	pptr->curr_chunk[chunk_num].lower_bound = 0;
 	uint32_t chunk_size = MIN_CHUNK_SIZE;
 
-	for (uint32_t i = 0; i < length - MIN_CHUNK_SIZE; i=i)
+	for (uint32_t i = MIN_CHUNK_SIZE; i < length - MIN_CHUNK_SIZE; i=i)
 	{
 		if(((hash % MODULUS) == TARGET))
 		{
 			pptr->curr_chunk[chunk_num].upper_bound = chunk_size  + pptr->curr_chunk[chunk_num].lower_bound;
 			pptr->curr_chunk[chunk_num].size = chunk_size;
 			chunk_size = MIN_CHUNK_SIZE;
+			// Next chunk
 			chunk_num++;
 			pptr->curr_chunk[chunk_num].lower_bound = pptr->curr_chunk[chunk_num - 1].upper_bound + 1;
 			i = i + MIN_CHUNK_SIZE;

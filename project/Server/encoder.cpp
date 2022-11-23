@@ -24,15 +24,6 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 
 void compress(unsigned char *buffer, packet* pptr)
 {
-	// Structure to store data for current chunk
-	// uint32_t length = pptr->size;
-	// chunk curr_chunk;
-
-	// curr_chunk.lower_bound = 0;
-	// curr_chunk.upper_bound = 0;
-
-	// chunk *cptr = &curr_chunk;
-
 	cdc_eff_timer.start();
 	cdc_eff(&buffer[0], pptr);
 	cdc_eff_timer.stop();
@@ -51,45 +42,6 @@ void compress(unsigned char *buffer, packet* pptr)
 	lzw_timer.stop();
 	
 	makelog(VERB_DEBUG,"Packet Complete");
-	
-	
-	// while(curr_chunk.lower_bound < length)
-	// {
-	// 	cdc_eff_timer.start();
-	// 	cdc_eff(&buffer[curr_chunk.lower_bound], cptr, length);
-	// 	cdc_eff_timer.stop();
-
-	// 	//std::cout<<"current chunk lower bound: "<<curr_chunk.lower_bound<<"\n";
-	// 	makelog(VERB_DEBUG,"current chunk lower bound %d\n", curr_chunk.lower_bound);
-	// 	//std::cout<<"current chunk upper bound: "<<curr_chunk.upper_bound<<"\n";
-	// 	makelog(VERB_DEBUG,"current chunk upper bound %d\n", curr_chunk.upper_bound);
-	// 	curr_chunk.size = curr_chunk.upper_bound - curr_chunk.lower_bound + 1;
-	// 	//std::cout<<"Size of chunk: "<<curr_chunk.size<<"\n";
-	// 	makelog(VERB_DEBUG,"size of chunk %d\n", curr_chunk.lower_bound);
-
-	// 	sha_timer.start();
-	// 	sha(&buffer[curr_chunk.lower_bound], cptr);
-	// 	sha_timer.stop();
-
-	// 	chunk_matching_timer.start();
-	// 	chunk_matching(cptr);
-	// 	chunk_matching_timer.stop();
-
-	// 	if (curr_chunk.is_unique)
-	// 	{
-	// 		lzw_timer.start();
-	// 		// lzw_encoding(&buffer[curr_chunk.lower_bound], cptr);
-	// 		lzw_host(&buffer[curr_chunk.lower_bound], cptr);
-	// 		lzw_timer.stop();
-	// 	}
-
-	// 	curr_chunk.lower_bound = curr_chunk.upper_bound +1;
-
-	// 	//std::cout<<"CHUNK COMPLETE\n\n\n";
-	// 	makelog(VERB_DEBUG,"Chunk Complete");
-		
-	// 	// first_itr = false;
-	// }
 }
 
 int main(int argc, char* argv[]) {
@@ -176,8 +128,6 @@ int main(int argc, char* argv[]) {
 		ethernet_timer.start();
 		server.get_packet(input[writer]);
 		ethernet_timer.stop();
-
-		
 
 		// get packet
 		unsigned char* buffer = input[writer];

@@ -1,7 +1,5 @@
 #include "sha.h"
 
-
-
 void sha_comp(uint32x4_t MSG0, uint32x4_t MSG1, uint32x4_t MSG2, uint32x4_t MSG3, uint32x4_t* STATE0, uint32x4_t* STATE1, uint32x4_t *ABEF_SAVE,uint32x4_t *CDGH_SAVE)
 {
     uint32x4_t TMP0, TMP1, TMP2;
@@ -142,7 +140,6 @@ void sha_comp(uint32x4_t MSG0, uint32x4_t MSG1, uint32x4_t MSG2, uint32x4_t MSG3
 /*  state, and the caller is responsible for padding the final block.        */
 void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length)
 {
-
     // Padding calculation
     uint64_t input_bits = length<<3;
     int64_t zero_padding_bits = 448 - ((input_bits + 1) % 512);
@@ -208,14 +205,14 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
 
     sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
 
-    if(padding_overflow){
+    if(padding_overflow)
+    {
+        MSG0 = vld1q_u32((const uint32_t *)(padded_data + 64));
+        MSG1 = vld1q_u32((const uint32_t *)(padded_data + 80));
+        MSG2 = vld1q_u32((const uint32_t *)(padded_data + 96));
+        MSG3 = vld1q_u32((const uint32_t *)(padded_data + 112));
         
-    MSG0 = vld1q_u32((const uint32_t *)(padded_data + 64));
-    MSG1 = vld1q_u32((const uint32_t *)(padded_data + 80));
-    MSG2 = vld1q_u32((const uint32_t *)(padded_data + 96));
-    MSG3 = vld1q_u32((const uint32_t *)(padded_data + 112));
-    
-    sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
+        sha_comp(MSG0, MSG1, MSG2, MSG3, &STATE0, &STATE1, &ABEF_SAVE, &CDGH_SAVE);
     }
 
     /* Save state */
@@ -237,7 +234,7 @@ void sha(uint8_t* buff, packet *pptr)//, wc_Sha3* sha3_384)
             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
         };
 
-        sha256_process_arm(state, buff[pptr->curr_chunk[chunk_num].lower_bound], pptr->curr_chunk[chunk_num].size);
+        sha256_process_arm(state, &buff[pptr->curr_chunk[chunk_num].lower_bound], pptr->curr_chunk[chunk_num].size);
 
         for(int i=0; i<8 ; i++)
         {
