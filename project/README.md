@@ -6,11 +6,11 @@
 * Comp uses LZW compression algorithm.
 
 ## To Do
-* Implement LZW on FPGA
-* Logger with verbosity levels
+* Implement LZW on FPGA (done - array implementation)
+* Logger with verbosity levels (done)
 * Prefetch reads and issue writes
-* Power Table in CDC
-* Hash only once in CDC
+* Power Table in CDC (done)
+* Hash only once in CDC (using min chunk size to improve throughput)
 * Write a script for compilation, file copying and execution process.
 
 ## Benchmarks
@@ -97,3 +97,4 @@ Output Throughput from Encoder without LZW: 316.763 Mb/s. (Latency: 0.0100783s).
 * Packet Level Granularity (Done)
 * Multithreading and Pipelining
 * Streaming in Kernel
+* Associative memory impl in Kernel
