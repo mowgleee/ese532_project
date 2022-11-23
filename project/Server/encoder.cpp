@@ -22,7 +22,7 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void compress(unsigned char *buffer, packet* pptr)
+void compress(unsigned char *buffer, packet* pptr, lzw_request &kernel_cl_obj)
 {
 	cdc_eff_timer.start();
 	makelog(VERB_DEBUG,"CDC Timer started and entering CDC \n");
@@ -39,8 +39,8 @@ void compress(unsigned char *buffer, packet* pptr)
 	chunk_matching_timer.stop();
 	
 	lzw_timer.start();
-	lzw_encoding(&buffer[0], pptr);
-	// lzw_host(&buffer[curr_chunk.lower_bound], cptr);
+	// lzw_encoding(&buffer[0], pptr);
+	lzw_host(&buffer[0], pptr, kernel_cl_obj);
 	lzw_timer.stop();
 	
 	makelog(VERB_DEBUG,"Packet Complete");
@@ -115,12 +115,15 @@ int main(int argc, char* argv[]) {
 	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
 	std::cout<<"packet to pointer \n";
 
+	// Creating open cl object for host configuration and kernel run
+	lzw_request kernel_cl_obj;
+
 	packet curr_packet;
 	packet* pptr = &curr_packet;
 	curr_packet.num = 0;
 	curr_packet.size = length;
 	makelog(VERB_DEBUG,"Entering Compress \n");
-	compress(&buffer[HEADER], pptr);
+	compress(&buffer[HEADER], pptr, kernel_cl_obj);
 	makelog(VERB_DEBUG,"Exit Compress Sucessfully \n");
 
 	writer++;
@@ -151,7 +154,7 @@ int main(int argc, char* argv[]) {
 		curr_packet.num = count;
 		curr_packet.size = length;
 		
-		compress(&buffer[HEADER], pptr);
+		compress(&buffer[HEADER], pptr, kernel_cl_obj);
 		
 		count++;	//next packet count
 		writer++;
