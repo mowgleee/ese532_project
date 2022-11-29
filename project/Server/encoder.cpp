@@ -1,9 +1,48 @@
 #include "encoder.h"
 
+
 stopwatch lzw_timer;
 stopwatch cdc_eff_timer;
 stopwatch chunk_matching_timer;
 stopwatch sha_timer;
+
+
+void pin_thread_to_cpu(std::thread &t, int cpu_num)
+{
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(__APPLE__)
+    return;
+#else
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu_num, &cpuset);
+    int rc =
+        pthread_setaffinity_np(t.native_handle(), sizeof(cpu_set_t), &cpuset);
+    if (rc != 0)
+    {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+#endif
+}
+
+void pin_main_thread_to_cpu0()
+{
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(__APPLE__)
+    return;
+#else
+    pthread_t thread;
+    thread = pthread_self();
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    int rc =
+        pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    if (rc != 0)
+    {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+#endif
+}
+
 
 void handle_input(int argc, char* argv[], int* blocksize) {
 	int x;
@@ -22,31 +61,75 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void compress(unsigned char *buffer, packet* pptr, lzw_request &kernel_cl_obj)
+void compress(unsigned char *buffer, packet* pptr, lzw_request *kernel_cl_obj, semaphores* sems)
 {
 	cdc_eff_timer.start();
 	makelog(VERB_DEBUG,"CDC Timer started and entering CDC \n");
-	cdc_eff(&buffer[0], pptr);
+
+
+	// cdc_eff(&buffer[0], pptr);
+
+	std::vector<std::thread> ths;
+    ths.push_back(std::thread(&cdc_eff, &buffer[0], pptr, sems));
+	pin_thread_to_cpu(ths[0], 0);
+	
+	
 	makelog(VERB_DEBUG,"CDC exit succesfully and timer stop \n");
 	cdc_eff_timer.stop();
 
 	sha_timer.start();
-	sha(&buffer[0], pptr);
+
+
+
+
+	// sha(&buffer[0], pptr);
+
+	ths.push_back(std::thread(&sha, &buffer[0], pptr, sems));
+	pin_thread_to_cpu(ths[1], 1);
+
+
+
+
 	sha_timer.stop();
 	
 	chunk_matching_timer.start();
-	chunk_matching(pptr);
+
+
+
+	// chunk_matching(pptr);
+	
+	ths.push_back(std::thread(&chunk_matching, pptr, sems));
+	pin_thread_to_cpu(ths[2], 2);
+	
+	
+	
 	chunk_matching_timer.stop();
 	
 	lzw_timer.start();
 	// lzw_encoding(&buffer[0], pptr);
-	lzw_host(&buffer[0], pptr, kernel_cl_obj);
+
+
+
+	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
+
+	ths.push_back(std::thread(&lzw_host, &buffer[0], pptr, kernel_cl_obj, sems));
+	pin_thread_to_cpu(ths[3], 3);
+
 	lzw_timer.stop();
+
+
+	for (auto &th : ths)
+    {
+      th.join();
+    }
 	
 	makelog(VERB_DEBUG,"Packet Complete");
 }
 
 int main(int argc, char* argv[]) {
+
+	pin_main_thread_to_cpu0();
+	
 	char *fileName[50];
 	if(argc==4){
 		if(argv[1]=="-"){
@@ -124,8 +207,20 @@ int main(int argc, char* argv[]) {
 	packet* pptr = &curr_packet;
 	curr_packet.num = 0;
 	curr_packet.size = length;
+
+
+	semaphores sems;
+	int ret = 0;
+	// int count = 0;
+
+	/* to be used within this process only */
+	ret |= sem_init(&(sems.sem_cdc), 0, 1); 
+	ret |= sem_init(&(sems.sem_sha), 0, 0);
+	ret |= sem_init(&(sems.sem_dedup), 0, 0);
+	ret |= sem_init(&(sems.sem_lzw), 0, 0);
+	
 	makelog(VERB_DEBUG,"Entering Compress \n");
-	compress(&buffer[HEADER], pptr, kernel_cl_obj);
+	compress(&buffer[HEADER], pptr, &kernel_cl_obj, &sems);
 	makelog(VERB_DEBUG,"Exit Compress Sucessfully \n");
 
 	writer++;
@@ -156,7 +251,7 @@ int main(int argc, char* argv[]) {
 		curr_packet.num = count;
 		curr_packet.size = length;
 		
-		compress(&buffer[HEADER], pptr, kernel_cl_obj);
+		compress(&buffer[HEADER], pptr, &kernel_cl_obj, &sems);
 		
 		count++;	//next packet count
 		writer++;

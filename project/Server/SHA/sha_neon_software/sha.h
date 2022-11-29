@@ -54,5 +54,5 @@ static const uint32_t K[] =
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
 };
 
-void sha(unsigned char* buff, packet *pptr);
+void sha(unsigned char* buff, packet *pptr, semaphores* sems);
 void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length);

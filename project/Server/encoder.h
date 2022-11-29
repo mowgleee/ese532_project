@@ -20,7 +20,7 @@ stopwatch kernel_mem_timer;
 
 void handle_input(int argc, char* argv[], int* blocksize);
 // void compress(unsigned char *buffer, packet* pptr);
-void compress(unsigned char *buffer, packet* pptr, lzw_request &kernel_cl_obj);
+void compress(unsigned char *buffer, packet* pptr, lzw_request *kernel_cl_obj, semaphores* sem);
 
 
 #endif

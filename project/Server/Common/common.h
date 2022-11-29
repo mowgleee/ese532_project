@@ -26,6 +26,8 @@
 #include "../stopwatch.h"
 #include "../server.h"
 
+#include <thread>
+#include <semaphore.h>
 
 #define NUM_PACKETS 8
 #define pipe_depth 4
@@ -87,5 +89,13 @@ typedef struct packet
 	uint32_t num_of_chunks = 0;
 	chunk curr_chunk[BLOCKSIZE/MIN_CHUNK_SIZE];
 }packet;
+
+typedef struct semaphores
+{
+	sem_t sem_cdc;
+	sem_t sem_sha;
+	sem_t sem_dedup;
+	sem_t sem_lzw;
+}semaphores;
 
 #endif

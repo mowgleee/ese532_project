@@ -4,5 +4,5 @@
 #include "../../Common/common.h"
 
 
-void lzw_encoding(unsigned char *buff, packet* pptr);
+void lzw_encoding(unsigned char *buff, packet* pptr, semaphores* sems);
 #endif

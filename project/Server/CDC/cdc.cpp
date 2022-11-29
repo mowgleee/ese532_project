@@ -12,8 +12,9 @@ uint64_t hash_func(unsigned char *input, uint32_t pos)
 	return hash;
 }
 
-void cdc_eff(unsigned char *buff, packet* pptr)
+void cdc_eff(unsigned char *buff, packet* pptr, semaphores* sems)
 {
+	sem_wait(&(sems->sem_cdc));
 	uint64_t hash = hash_func(buff, MIN_CHUNK_SIZE);
 	static const uint64_t pow_const = pow(PRIME, WIN_SIZE + 1);
 
@@ -59,5 +60,7 @@ void cdc_eff(unsigned char *buff, packet* pptr)
 	makelog(VERB_DEBUG,"Upper bound of chunk %d equal to: %d \n", chunk_num, pptr->curr_chunk[chunk_num].upper_bound);
 	makelog(VERB_DEBUG,"Size  of chunk %d \n", pptr->curr_chunk[chunk_num].size );
 	makelog(VERB_DEBUG,"Num  of chunk %d \n", pptr->num_of_chunks );
-	return;
+	
+	sem_post(&(sems->sem_sha));
+	// return;
 }

@@ -1,7 +1,8 @@
 #include "dedup.h"
 
-void chunk_matching(packet *pptr)//, std::unordered_map<std::string, uint32_t> *chunks_map)//, uint32_t* unique_chunks)
+void chunk_matching(packet *pptr, semaphores* sems)//, std::unordered_map<std::string, uint32_t> *chunks_map)//, uint32_t* unique_chunks)
 {
+	sem_wait(&(sems->sem_dedup));
 	static uint32_t unique_chunks = 0;
 	static std::unordered_map<std::string, uint32_t> chunks_map;
 	
@@ -39,4 +40,5 @@ void chunk_matching(packet *pptr)//, std::unordered_map<std::string, uint32_t> *
 		}
 	}
 	std::cout<<"Dedup Done \n";
+	sem_post(&(sems->sem_lzw));
 }

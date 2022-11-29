@@ -220,8 +220,10 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     vst1q_u32(&state[4], STATE1);
 }
 
-void sha(uint8_t* buff, packet *pptr)//, wc_Sha3* sha3_384)
+void sha(uint8_t* buff, packet *pptr, semaphores* sems)//, wc_Sha3* sha3_384)
 {
+    sem_wait(&(sems->sem_sha));
+
     for(uint32_t chunk_num = 0; chunk_num < pptr->num_of_chunks; chunk_num++)
     {
         //std::cout<<"Calculating SHA for chunk: "<<chunk_num<<"\n";
@@ -258,4 +260,6 @@ void sha(uint8_t* buff, packet *pptr)//, wc_Sha3* sha3_384)
         std::string shaString(reinterpret_cast<char*>(shaChar), 32);
         pptr->curr_chunk[chunk_num].sha = shaString;
     }
+
+    sem_post(&(sems->sem_dedup));
 }

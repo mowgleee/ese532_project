@@ -1,6 +1,6 @@
 #include "lzw.h"
 
-void lzw_encoding(unsigned char *buff, packet* pptr)
+void lzw_encoding(unsigned char *buff, packet* pptr, semaphores* sems)
 {
 	uint32_t chunk_header=0;
 	for(uint32_t chunk_num = 0; chunk_num < pptr->num_of_chunks; chunk_num++)

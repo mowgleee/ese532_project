@@ -56,7 +56,7 @@ class lzw_request
     uint32_t* ptr_output_size;
 };
 
-void lzw_host(unsigned char *buff, packet* pptr, lzw_request &kernel_cl_obj);
+void lzw_host(unsigned char *buff, packet* pptr, lzw_request *kernel_cl_obj, semaphores* sems);
 
 // OCL_CHECK doesn't work if call has templatized function call
 #define OCL_CHECK(error, call)                                                 \
