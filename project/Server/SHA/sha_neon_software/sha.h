@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include <arm_neon.h>
+#include <semaphore.h>
 // #include <wolfssl/options.h>
 // #include <wolfssl/wolfcrypt/sha3.h>
 
@@ -33,6 +34,14 @@ typedef struct packet
 	uint32_t num_of_chunks = 0;
 	chunk curr_chunk[BLOCKSIZE/MIN_CHUNK_SIZE];
 }packet;
+
+typedef struct semaphores
+{
+	sem_t sem_cdc;
+	sem_t sem_sha;
+	sem_t sem_dedup;
+	sem_t sem_lzw;
+}semaphores;
 
 static const uint32_t K[] =
 {
