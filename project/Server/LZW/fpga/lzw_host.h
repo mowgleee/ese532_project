@@ -1,3 +1,5 @@
+#ifndef _LZW_HOST_
+#define _LZW_HOST_
 // #include "encoder.h"
 #define CL_HPP_CL_1_2_DEFAULT_BUILD
 #define CL_HPP_TARGET_OPENCL_VERSION 120
@@ -15,6 +17,11 @@
 // #include <iostream>
 // #include <unistd.h>
 // #include <vector>
+
+extern stopwatch kernel_init_timer;
+extern stopwatch kernel_timer;
+extern stopwatch kernel_mem_timer;
+
 
 class lzw_request
 {
@@ -42,9 +49,11 @@ class lzw_request
 
     public:
     lzw_request();
+    ~lzw_request();
     void init(uint32_t chunk_size, unsigned char* input_to_fpga, uint32_t* ptr_output_size);
     void run();
     unsigned char* output_from_fpga;
+    uint32_t* ptr_output_size;
 };
 
 void lzw_host(unsigned char *buff, packet* pptr, lzw_request &kernel_cl_obj);
@@ -61,6 +70,8 @@ void lzw_host(unsigned char *buff, packet* pptr, lzw_request &kernel_cl_obj);
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 void set_callback(cl::Event event, const char *queue_name);
+
+#endif
 
 // When creating a buffer with user pointer (CL_MEM_USE_HOST_PTR), under the
 // hood

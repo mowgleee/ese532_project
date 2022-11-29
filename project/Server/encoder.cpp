@@ -116,7 +116,9 @@ int main(int argc, char* argv[]) {
 	std::cout<<"packet to pointer \n";
 
 	// Creating open cl object for host configuration and kernel run
+	lzw_timer.start();
 	lzw_request kernel_cl_obj;
+	lzw_timer.stop();
 
 	packet curr_packet;
 	packet* pptr = &curr_packet;

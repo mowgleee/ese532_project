@@ -17,6 +17,13 @@ lzw_request::lzw_request()
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
     output_from_fpga = (unsigned char *)calloc(MAX_CHUNK_SIZE, sizeof(unsigned char));
+    ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+}
+
+lzw_request::~lzw_request()
+{
+    free(output_from_fpga);
+    free(ptr_output_size);
 }
 
 void lzw_request::init(uint32_t chunk_size, unsigned char* input_to_fpga, uint32_t* ptr_output_size)
@@ -34,13 +41,19 @@ void lzw_request::init(uint32_t chunk_size, unsigned char* input_to_fpga, uint32
 
 void lzw_request::run()
 {
+    kernel_mem_timer.start();
     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf}, 0 /* 0 means from host*/, NULL, &write_ev));
     write_events.push_back(write_ev);
+    kernel_mem_timer.stop();
     printf("Enqueueing the kernel.\n");
+    kernel_timer.start();
     OCL_CHECK(err, err = q.enqueueTask(lzw_kernel, &write_events, &exec_ev));
     exec_events.push_back(exec_ev);
+    kernel_timer.stop();
+    kernel_mem_timer.start();
     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf, output_size_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev));
     OCL_CHECK(err, err = read_ev.wait());
+    kernel_mem_timer.stop();
     read_events.push_back(read_ev);
     q.finish();
 }
@@ -57,12 +70,14 @@ void lzw_host(unsigned char *buff, packet* pptr, lzw_request &kernel_cl_obj)
             // unsigned char* input_to_fpga = (unsigned char *)calloc(curr_chunk_size, sizeof(unsigned char));
             // memcpy(input_to_fpga, &buff[pptr->curr_chunk[chunk_num].lower_bound], curr_chunk_size);
             // unsigned char* output_from_fpga = (unsigned char *)calloc(MAX_CHUNK_SIZE, sizeof(unsigned char));
-            uint32_t* ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+            // uint32_t* ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+           
+            kernel_init_timer.start();
+            kernel_cl_obj.init(curr_chunk_size, &buff[pptr->curr_chunk[chunk_num].lower_bound], kernel_cl_obj.ptr_output_size);
+            kernel_init_timer.stop();
 
-            kernel_cl_obj.init(curr_chunk_size, &buff[pptr->curr_chunk[chunk_num].lower_bound], ptr_output_size);
-
-            stopwatch kernel_timer;
-            kernel_timer.start();
+          
+            
 
             kernel_cl_obj.run();
 
@@ -70,21 +85,25 @@ void lzw_host(unsigned char *buff, packet* pptr, lzw_request &kernel_cl_obj)
             // Step 4: Release Allocated Resources
             // ------------------------------------------------------------------------------------
 
-            kernel_timer.stop();
+            
 
-            std::cout << "Output size received from kernel: " << *ptr_output_size << std::endl;
-            std::cout << "Average latency of lzw_hw_kernel: " << kernel_timer.avg_latency() << std::endl;
-            std::cout << "TOtal latency of lzw_kernel: " << kernel_timer.latency() << std::endl;
+            // std::cout << "Output size received from kernel: " << *(kernel_cl_obj.ptr_output_size) << std::endl;
+            std::cout << "Average latency of lzw_hw_kernel call only: " << kernel_timer.avg_latency() << std::endl;
+            std::cout << "Total latency of lzw_kernel call only: " << kernel_timer.latency() << std::endl;
+            std::cout << "Average latency of lzw_hw_kernel MEM TRANSFER only: " << kernel_mem_timer.avg_latency() << std::endl;
+            std::cout << "Total latency of lzw_kernel MEM TRANSFER only: " << kernel_mem_timer.latency() << std::endl;
+            std::cout << "Average latency of lzw_hw_kernel initialization only: " << kernel_init_timer.avg_latency() << std::endl;
+            std::cout << "Total latency of lzw_kernel initialization only: " << kernel_init_timer.latency() << std::endl;
 
             // Writing chunk header to global file pointer
-            uint32_t chunk_header = (*ptr_output_size << 1);
+            uint32_t chunk_header = (*(kernel_cl_obj.ptr_output_size) << 1);
             std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
             memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
             offset += sizeof(uint32_t);
 
             // Writing compressed chunk reveived from fpga to global file pointer
-            memcpy(&file[offset], kernel_cl_obj.output_from_fpga, *ptr_output_size);
-            offset+= *ptr_output_size;
+            memcpy(&file[offset], kernel_cl_obj.output_from_fpga, *(kernel_cl_obj.ptr_output_size));
+            offset+= *(kernel_cl_obj.ptr_output_size);
         }
         else
 		{
