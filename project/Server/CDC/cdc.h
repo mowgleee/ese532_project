@@ -5,6 +5,6 @@
 #include "../Common/common.h"
 
 uint64_t hash_func(unsigned char *input, uint32_t pos);
-void cdc_eff(unsigned char *buff, packet* pptr, semaphores* sems);
+void cdc_eff(packet** packarray, semaphores* sems);
 
 #endif

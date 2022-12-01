@@ -61,74 +61,10 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 	}
 }
 
-void compress(unsigned char *buffer, packet* pptr, lzw_request *kernel_cl_obj, semaphores* sems)
-{
-	cdc_eff_timer.start();
-	makelog(VERB_DEBUG,"CDC Timer started and entering CDC \n");
-
-
-	// cdc_eff(&buffer[0], pptr);
-
-	std::vector<std::thread> ths;
-    ths.push_back(std::thread(&cdc_eff, &buffer[0], pptr, sems));
-	pin_thread_to_cpu(ths[0], 0);
-	
-	
-	makelog(VERB_DEBUG,"CDC exit succesfully and timer stop \n");
-	cdc_eff_timer.stop();
-
-	sha_timer.start();
-
-
-
-
-	// sha(&buffer[0], pptr);
-
-	ths.push_back(std::thread(&sha, &buffer[0], pptr, sems));
-	pin_thread_to_cpu(ths[1], 1);
-
-
-
-
-	sha_timer.stop();
-	
-	chunk_matching_timer.start();
-
-
-
-	// chunk_matching(pptr);
-	
-	ths.push_back(std::thread(&chunk_matching, pptr, sems));
-	pin_thread_to_cpu(ths[2], 2);
-	
-	
-	
-	chunk_matching_timer.stop();
-	
-	lzw_timer.start();
-	// lzw_encoding(&buffer[0], pptr);
-
-
-
-	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
-
-	ths.push_back(std::thread(&lzw_host, &buffer[0], pptr, kernel_cl_obj, sems));
-	pin_thread_to_cpu(ths[3], 3);
-
-	lzw_timer.stop();
-
-
-	for (auto &th : ths)
-    {
-      th.join();
-    }
-	
-	makelog(VERB_DEBUG,"Packet Complete");
-}
-
 int main(int argc, char* argv[]) {
 
 	pin_main_thread_to_cpu0();
+
 	
 	char *fileName[50];
 	if(argc==4){
@@ -150,11 +86,11 @@ int main(int argc, char* argv[]) {
 
 	stopwatch ethernet_timer;
 	stopwatch output_timer;
-	unsigned char* input[NUM_PACKETS];
+	// unsigned char* input[NUM_PACKETS];
 	int writer = 0;
 	int done = 0;
 	uint32_t length = 0;
-	int count = 0;
+	uint32_t count = 0;
 	ESE532_Server server;
 	uint32_t total_input_size = 0;
 
@@ -181,9 +117,32 @@ int main(int argc, char* argv[]) {
 
 	server.setup_server(blocksize);
 
-	writer = pipe_depth;
+	
+	
+	
+	semaphores sems;
+	int ret = 0;
+	// int count = 0;
+
+	////////////////////////////////Initializing Semaphores///////////////////
+	/* to be used within this process only */
+	ret |= sem_init(&(sems.sem_getpacket), 0, NUM_PACKETS);
+	ret |= sem_init(&(sems.sem_cdc), 0, 0); 
+	ret |= sem_init(&(sems.sem_sha), 0, 0);
+	ret |= sem_init(&(sems.sem_dedup), 0, 0);
+	ret |= sem_init(&(sems.sem_lzw), 0, 0);
+
+	makelog(VERB_DEBUG,"Semaphores Created \n");
+
+
+
+	writer = 0;//pipe_depth;
+	ethernet_timer.start();
+	makelog(VERB_DEBUG, "Waiting for getpacket Semaphore\n");
+	sem_wait(&(sems.sem_getpacket));
+	makelog(VERB_DEBUG, "Received getpacket Semaphore\n");
 	server.get_packet(input[writer]);
-	count++;
+	ethernet_timer.stop();
 
 	// get packet
 	unsigned char* buffer = input[writer];
@@ -193,35 +152,74 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 	total_input_size += length;
-	output_timer.start();
-
-	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
-	std::cout<<"packet to pointer \n";
-
-	// Creating open cl object for host configuration and kernel run
 	lzw_timer.start();
 	lzw_request kernel_cl_obj;
 	lzw_timer.stop();
+	output_timer.start();
 
-	packet curr_packet;
-	packet* pptr = &curr_packet;
-	curr_packet.num = 0;
-	curr_packet.size = length;
+	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
+	// std::cout<<"packet to pointer \n";
 
-
-	semaphores sems;
-	int ret = 0;
-	// int count = 0;
-
-	/* to be used within this process only */
-	ret |= sem_init(&(sems.sem_cdc), 0, 1); 
-	ret |= sem_init(&(sems.sem_sha), 0, 0);
-	ret |= sem_init(&(sems.sem_dedup), 0, 0);
-	ret |= sem_init(&(sems.sem_lzw), 0, 0);
+	// Creating open cl object for host configuration and kernel run
 	
-	makelog(VERB_DEBUG,"Entering Compress \n");
-	compress(&buffer[HEADER], pptr, &kernel_cl_obj, &sems);
-	makelog(VERB_DEBUG,"Exit Compress Sucessfully \n");
+	makelog(VERB_DEBUG,"Creating packet array\n");
+	packet *packarray[NUM_PACKETS]; //Has to be changed later for bigger files
+
+
+	for (uint32_t i = 0; i < NUM_PACKETS; i++) {
+		packarray[i] = (packet*) malloc(sizeof(packet));
+		if (input[i] == NULL) {
+			std::cout << "aborting " << std::endl;
+			return 1;
+		}
+	}
+
+	packarray[count]->num=0;
+	packarray[count]->size=length;
+	makelog(VERB_DEBUG,"Packet array created and packet assigned\n");
+	count++;
+
+
+	///////////////////////////////////creating threads///////////////////////////////////
+	std::vector<std::thread> ths;
+
+	cdc_eff_timer.start();
+	// cdc_eff(&buffer[HEADER], packarray, &sems);
+	ths.push_back(std::thread(&cdc_eff, packarray, &sems));
+	pin_thread_to_cpu(ths[0], 2);
+	cdc_eff_timer.stop();
+	makelog(VERB_DEBUG,"Dedup thread activated\n");
+
+
+	sha_timer.start();
+	// sha(&buffer[0], pptr);
+	ths.push_back(std::thread(&sha, &sems, packarray));
+	pin_thread_to_cpu(ths[1], 1);
+	sha_timer.stop();
+	makelog(VERB_DEBUG,"SHA thread activated\n");
+
+
+	chunk_matching_timer.start();
+	// chunk_matching(pptr);
+	ths.push_back(std::thread(&chunk_matching,&sems, packarray));
+	pin_thread_to_cpu(ths[2], 2);
+	chunk_matching_timer.stop();
+	makelog(VERB_DEBUG,"Dedup thread activated\n");
+	
+
+	lzw_timer.start();
+	// lzw_encoding(&buffer[0], pptr);
+	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
+	ths.push_back(std::thread(&lzw_host,&kernel_cl_obj, &sems, packarray));
+	pin_thread_to_cpu(ths[3], 3);
+	lzw_timer.stop();
+	makelog(VERB_DEBUG,"LZW thread activated\n");
+
+
+
+
+	makelog(VERB_DEBUG,"Posting semaphore for cdc \n");
+	sem_post(&(sems.sem_cdc));
 
 	writer++;
 
@@ -232,6 +230,9 @@ int main(int argc, char* argv[]) {
 		}
 
 		ethernet_timer.start();
+		makelog(VERB_DEBUG, "Waiting for getpacket Semaphore\n");
+		sem_wait(&(sems.sem_getpacket));
+		makelog(VERB_DEBUG, "Received getpacket Semaphore\n");
 		server.get_packet(input[writer]);
 		ethernet_timer.stop();
 
@@ -243,19 +244,26 @@ int main(int argc, char* argv[]) {
 		length = buffer[0] | (buffer[1] << 8);
 		length &= ~DONE_BIT_H;
 		total_input_size += length;
-		//std::cout<<"Packet Length: "<< length<<"\n";
-		makelog(VERB_DEBUG,"Packet Length %d \n", length);
 
-		packet curr_packet;
-		packet* pptr = &curr_packet;
-		curr_packet.num = count;
-		curr_packet.size = length;
-		
-		compress(&buffer[HEADER], pptr, &kernel_cl_obj, &sems);
-		
+		packarray[writer]->num=count;
+		packarray[writer]->size=length;
+		makelog(VERB_DEBUG,"Posting semaphore for cdc \n");
+		sem_post(&(sems.sem_cdc));
+
 		count++;	//next packet count
 		writer++;
+		
 	}
+
+	std::cout<<"ALL PACKETS RECEIVED\n";
+
+	total_packets = count-1;
+
+
+	for (auto &th : ths)
+    {
+      th.join();
+    }
 
 	// write file to root and you can use diff tool on board
 	output_timer.stop();
@@ -265,10 +273,12 @@ int main(int argc, char* argv[]) {
 	printf("write file with %d\n", bytes_written);
 	fclose(outfd);
 
-	for (int i = 0; i < NUM_PACKETS; i++) {
+	for (uint32_t i = 0; i < NUM_PACKETS; i++) {
 		free(input[i]);
 	}
-
+	for(uint32_t q=0;q<NUM_PACKETS;q++){
+		free(packarray[q]);
+	}
 	free(file);
 	std::cout << "--------------- Key Throughputs ---------------" << std::endl;
 	float ethernet_latency = ethernet_timer.latency() / 1000.0;

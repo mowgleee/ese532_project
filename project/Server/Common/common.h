@@ -29,7 +29,7 @@
 #include <thread>
 #include <semaphore.h>
 
-#define NUM_PACKETS 8
+#define NUM_PACKETS 50
 #define pipe_depth 4
 #define DONE_BIT_L (1 << 7)
 #define DONE_BIT_H (1 << 15)
@@ -44,9 +44,12 @@
 #define MAX_CHUNK_SIZE 8*1024
 #define CODE_LENGTH 13//log2(MAX_CHUNK_SIZE)
 
+
 extern int offset;
 extern unsigned char* file;
 extern stopwatch bit_pack_timer;
+extern unsigned char* input[NUM_PACKETS];
+extern  uint32_t total_packets;
 // stopwatch kernel_init_timer;
 // stopwatch kernel_timer;
 // stopwatch kernel_mem_timer;
@@ -92,6 +95,7 @@ typedef struct packet
 
 typedef struct semaphores
 {
+	sem_t sem_getpacket;
 	sem_t sem_cdc;
 	sem_t sem_sha;
 	sem_t sem_dedup;

@@ -14,6 +14,11 @@
 #define BLOCKSIZE 8192
 #define WIN_SIZE 16
 #define MIN_CHUNK_SIZE 16
+#define NUM_PACKETS 50
+#define HEADER 2
+extern uint32_t total_packets;
+extern unsigned char* input[NUM_PACKETS];
+
 
 // Structure to store all information about a chunk
 typedef struct chunk
@@ -37,6 +42,7 @@ typedef struct packet
 
 typedef struct semaphores
 {
+    sem_t sem_getpacket;
 	sem_t sem_cdc;
 	sem_t sem_sha;
 	sem_t sem_dedup;
@@ -63,5 +69,5 @@ static const uint32_t K[] =
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
 };
 
-void sha(unsigned char* buff, packet *pptr, semaphores* sems);
+void sha(semaphores* sems, packet** packarray);
 void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length);

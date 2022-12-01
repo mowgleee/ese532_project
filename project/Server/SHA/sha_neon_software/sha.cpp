@@ -220,46 +220,65 @@ void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length
     vst1q_u32(&state[4], STATE1);
 }
 
-void sha(uint8_t* buff, packet *pptr, semaphores* sems)//, wc_Sha3* sha3_384)
+void sha(semaphores* sems, packet** packarray)//, wc_Sha3* sha3_384)
 {
-    sem_wait(&(sems->sem_sha));
-
-    for(uint32_t chunk_num = 0; chunk_num < pptr->num_of_chunks; chunk_num++)
+   while(1) 
     {
-        //std::cout<<"Calculating SHA for chunk: "<<chunk_num<<"\n";
-        
+        std::cout<<"\nWaiting for SHA Semaphore\n";
+        sem_wait(&(sems->sem_sha));
+        packet* pptr;
+        uint8_t* buff;
+        static uint32_t count = 0;
+        buff = input[count%NUM_PACKETS];
+		buff = &buff[HEADER];
+        pptr = packarray[count%NUM_PACKETS];
+        std::cout<<"Semaphore for SHA received\n";
+		std::cout<<"SHA Packet Info:\n"<< "SHA Packet Num: "<< pptr->num <<"\n SHA Packet Size: "<< pptr->size <<"\n SHA No of Chunks in Packet: "<<pptr->num_of_chunks<<"\n SHA Count:"<< count <<"\n";
 
-        uint8_t shaChar[32]={0};
 
-        // std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";
-
-        /* initial state */
-        uint32_t state[8] = {
-            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-            0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
-        };
-
-        sha256_process_arm(state, &buff[pptr->curr_chunk[chunk_num].lower_bound], pptr->curr_chunk[chunk_num].size);
-
-        for(int i=0; i<8 ; i++)
+        for(uint32_t chunk_num = 0; chunk_num < pptr->num_of_chunks; chunk_num++)
         {
-            for (int j=0; j<=3; j++)
+            //std::cout<<"Calculating SHA for chunk: "<<chunk_num<<"\n";
+            
+
+            uint8_t shaChar[32]={0};
+
+            // std::cout<<"calculating sha for buff: "<<buff[0]<<buff[1]<<buff[2]<<"\n";
+
+            /* initial state */
+            uint32_t state[8] = {
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+            };
+
+            sha256_process_arm(state, &buff[pptr->curr_chunk[chunk_num].lower_bound], pptr->curr_chunk[chunk_num].size);
+
+            for(int i=0; i<8 ; i++)
             {
-                shaChar[(i<<2)+j] = state[i]>>((3-j)<<3);
+                for (int j=0; j<=3; j++)
+                {
+                    shaChar[(i<<2)+j] = state[i]>>((3-j)<<3);
+                }
             }
+
+            // printf("SHA256 hash: ");
+
+            // for(int i = 0; i < 32; i++)
+            // {
+            //     printf("%02X", (uint8_t)shaChar[i]);
+            // }
+            // printf("\n");
+
+            std::string shaString(reinterpret_cast<char*>(shaChar), 32);
+            pptr->curr_chunk[chunk_num].sha = shaString;
         }
 
-        // printf("SHA256 hash: ");
-
-        // for(int i = 0; i < 32; i++)
-        // {
-        //     printf("%02X", (uint8_t)shaChar[i]);
-        // }
-        // printf("\n");
-
-        std::string shaString(reinterpret_cast<char*>(shaChar), 32);
-        pptr->curr_chunk[chunk_num].sha = shaString;
-    }
-
-    sem_post(&(sems->sem_dedup));
+        sem_post(&(sems->sem_dedup));
+        std::cout<<"Dedup Semaphore Posted";
+        if(count == total_packets)
+        {
+            return;
+        }
+        count++;
+   }
 }

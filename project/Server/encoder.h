@@ -13,6 +13,8 @@
 int offset = 0;
 unsigned char* file = 0;
 stopwatch bit_pack_timer;
+unsigned char* input[NUM_PACKETS] = {0};
+uint32_t total_packets = INT_MAX;
 
 stopwatch kernel_init_timer;
 stopwatch kernel_timer;

@@ -4,5 +4,5 @@
 #include "../Common/common.h"
 
 
-void chunk_matching(packet *pptr, semaphores* sems);
+void chunk_matching(semaphores* sems, packet** packarray);
 #endif

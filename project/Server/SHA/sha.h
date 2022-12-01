@@ -1,11 +1,12 @@
 // Including common requirements here as commpiled separately
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <iostream>
-#include <math.h>
+// #include <stdio.h>
+// #include <stdint.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <iostream>
+// #include <math.h>
 
+#include "../Common/common.h"
 #include <arm_neon.h>
 // #include <wolfssl/options.h>
 // #include <wolfssl/wolfcrypt/sha3.h>
@@ -30,5 +31,5 @@ static const uint32_t K[] =
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
 };
 
-void sha(unsigned char* buff, packet *pptr, semaphores* sems);
+void sha(semaphores* sems, packet** packarray);
 void sha256_process_arm(uint32_t state[8], const uint8_t data[], uint32_t length);
