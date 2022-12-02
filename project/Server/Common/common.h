@@ -48,6 +48,11 @@
 extern int offset;
 extern unsigned char* file;
 extern stopwatch bit_pack_timer;
+extern stopwatch lzw_sem_timer;
+extern stopwatch cdc_sem_timer;
+extern stopwatch dedup_sem_timer;
+extern stopwatch sha_sem_timer;
+
 extern unsigned char* input[NUM_PACKETS];
 extern  uint32_t total_packets;
 // stopwatch kernel_init_timer;

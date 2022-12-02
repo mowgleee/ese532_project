@@ -226,6 +226,7 @@ void sha(semaphores* sems, packet** packarray)//, wc_Sha3* sha3_384)
     {
         std::cout<<"\nWaiting for SHA Semaphore\n";
         sem_wait(&(sems->sem_sha));
+        sha_sem_timer.start();
         packet* pptr;
         uint8_t* buff;
         static uint32_t count = 0;
@@ -272,6 +273,7 @@ void sha(semaphores* sems, packet** packarray)//, wc_Sha3* sha3_384)
             std::string shaString(reinterpret_cast<char*>(shaChar), 32);
             pptr->curr_chunk[chunk_num].sha = shaString;
         }
+        sha_sem_timer.stop();
 
         sem_post(&(sems->sem_dedup));
         std::cout<<"Dedup Semaphore Posted";

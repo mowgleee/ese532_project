@@ -8,6 +8,8 @@
 
 #include <arm_neon.h>
 #include <semaphore.h>
+#include "stopwatch.h"
+
 // #include <wolfssl/options.h>
 // #include <wolfssl/wolfcrypt/sha3.h>
 
@@ -18,6 +20,7 @@
 #define HEADER 2
 extern uint32_t total_packets;
 extern unsigned char* input[NUM_PACKETS];
+extern stopwatch sha_sem_timer;
 
 
 // Structure to store all information about a chunk

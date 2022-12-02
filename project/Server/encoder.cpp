@@ -84,6 +84,8 @@ int main(int argc, char* argv[]) {
 		*fileName = "compressed.bin";
 	}
 
+
+
 	stopwatch ethernet_timer;
 	stopwatch output_timer;
 	// unsigned char* input[NUM_PACKETS];
@@ -137,10 +139,11 @@ int main(int argc, char* argv[]) {
 
 
 	writer = 0;//pipe_depth;
-	ethernet_timer.start();
+	
 	makelog(VERB_DEBUG, "Waiting for getpacket Semaphore\n");
 	sem_wait(&(sems.sem_getpacket));
 	makelog(VERB_DEBUG, "Received getpacket Semaphore\n");
+	ethernet_timer.start();
 	server.get_packet(input[writer]);
 	ethernet_timer.stop();
 
@@ -152,10 +155,11 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 	total_input_size += length;
+	output_timer.start();
 	lzw_timer.start();
 	lzw_request kernel_cl_obj;
 	lzw_timer.stop();
-	output_timer.start();
+	
 
 	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
 	// std::cout<<"packet to pointer \n";
@@ -201,18 +205,18 @@ int main(int argc, char* argv[]) {
 
 	chunk_matching_timer.start();
 	// chunk_matching(pptr);
-	ths.push_back(std::thread(&chunk_matching,&sems, packarray));
+	ths.push_back(std::thread(&chunk_matching, &sems, packarray));
 	pin_thread_to_cpu(ths[2], 2);
 	chunk_matching_timer.stop();
 	makelog(VERB_DEBUG,"Dedup thread activated\n");
 	
 
-	lzw_timer.start();
+	//lzw_timer.start();
 	// lzw_encoding(&buffer[0], pptr);
 	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
-	ths.push_back(std::thread(&lzw_host,&kernel_cl_obj, &sems, packarray));
+	ths.push_back(std::thread(&lzw_host, &kernel_cl_obj, &sems, packarray));
 	pin_thread_to_cpu(ths[3], 3);
-	lzw_timer.stop();
+	//lzw_timer.stop();
 	makelog(VERB_DEBUG,"LZW thread activated\n");
 
 
@@ -229,10 +233,11 @@ int main(int argc, char* argv[]) {
 			writer = 0;
 		}
 
-		ethernet_timer.start();
+		
 		makelog(VERB_DEBUG, "Waiting for getpacket Semaphore\n");
 		sem_wait(&(sems.sem_getpacket));
 		makelog(VERB_DEBUG, "Received getpacket Semaphore\n");
+		ethernet_timer.start();
 		server.get_packet(input[writer]);
 		ethernet_timer.stop();
 
@@ -245,8 +250,8 @@ int main(int argc, char* argv[]) {
 		length &= ~DONE_BIT_H;
 		total_input_size += length;
 
-		packarray[writer]->num=count;
-		packarray[writer]->size=length;
+		packarray[writer]->num = count;
+		packarray[writer]->size = length;
 		makelog(VERB_DEBUG,"Posting semaphore for cdc \n");
 		sem_post(&(sems.sem_cdc));
 
@@ -276,33 +281,48 @@ int main(int argc, char* argv[]) {
 	for (uint32_t i = 0; i < NUM_PACKETS; i++) {
 		free(input[i]);
 	}
-	for(uint32_t q=0;q<NUM_PACKETS;q++){
+	for(uint32_t q=0; q<NUM_PACKETS; q++){
 		free(packarray[q]);
 	}
 	free(file);
 	std::cout << "--------------- Key Throughputs ---------------" << std::endl;
 	float ethernet_latency = ethernet_timer.latency() / 1000.0;
 	float output_latency = output_timer.latency() / 1000.0;//in sec
-	float op_latency_wo_lzw=(output_timer.latency()-lzw_timer.latency())/1000.0; //in sec
+	// float op_latency_wo_lzw=(output_timer.latency()-lzw_timer.latency()- lzw_sem_timer.latency())/1000.0; //in sec
 
 	float input_throughput = (total_input_size * 8 / 1000000.0) / ethernet_latency; // Mb/s
 	float output_throughput = (total_input_size * 8 / 1000000.0) / output_latency;
-	float output_throughput_wo_lzw = (total_input_size * 8 / 1000000.0) / op_latency_wo_lzw;
-
+	// float output_throughput_wo_lzw = (total_input_size * 8 / 1000000.0) / op_latency_wo_lzw;
+	float cdc_throughput= (total_input_size*8/1000000.0)/(cdc_sem_timer.latency()/1000.0);
+	float SHA_throughput= (total_input_size*8/1000000.0)/(sha_sem_timer.latency()/1000.0);
+	float chunk_matching_throughput= (total_input_size*8/1000000.0)/(dedup_sem_timer.latency()/1000.0);
+	float LZW_throughput=(total_input_size*8/1000000.0)/(lzw_sem_timer.latency()/1000.0);
 
 	std::cout << "Input Throughput to Encoder: " << input_throughput << " Mb/s."
 			<< " (Latency: " << ethernet_latency << "s)." << std::endl;
 
-	std::cout << "CDC Latency: " << cdc_eff_timer.latency() << "ms\t" << "AVG: "<< cdc_eff_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "SHA Latency: " << sha_timer.latency() << "ms\t" << "AVG: "<< sha_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "Chunk matching Latency: " << chunk_matching_timer.latency() << "ms\t" << "AVG: "<< chunk_matching_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "LZW Latency: " << lzw_timer.latency() << "ms\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
-	std::cout << "Bitpack Latency: " << bit_pack_timer.latency() << "ms\t" << "AVG: "<< bit_pack_timer.avg_latency() <<" ms"<< std::endl;
+	// std::cout << "CDC Latency: " << cdc_eff_timer.latency() << "ms\t" << "AVG: "<< cdc_eff_timer.avg_latency() <<" ms"<< std::endl;
+	// std::cout << "SHA Latency: " << sha_timer.latency() << "ms\t" << "AVG: "<< sha_timer.avg_latency() <<" ms"<< std::endl;
+	// std::cout << "Chunk matching Latency: " << chunk_matching_timer.latency() << "ms\t" << "AVG: "<< chunk_matching_timer.avg_latency() <<" ms"<< std::endl;
+	// std::cout << "LZW Constructor Latency: " << lzw_timer.latency() << "ms\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
+	// std::cout << "LZW Latency: " << lzw_sem_timer.latency() << "ms\t" << "AVG: "<< lzw_sem_timer.avg_latency() <<" ms"<< std::endl;
+
+	std::cout << "CDC Latency: " << cdc_sem_timer.latency() << "ms\t" << "AVG: "<< cdc_sem_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "SHA Latency: " << sha_sem_timer.latency() << "ms\t" << "AVG: "<< sha_sem_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "Chunk matching Latency: " << dedup_sem_timer.latency() << "ms\t" << "AVG: "<< dedup_sem_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "LZW Constructor Latency: " << lzw_timer.latency() << "ms\t" << "AVG: "<< lzw_timer.avg_latency() <<" ms"<< std::endl;
+	std::cout << "LZW Latency: " << lzw_sem_timer.latency() << "ms\t" << "AVG: "<< lzw_sem_timer.avg_latency() <<" ms"<< std::endl;
+
+	// std::cout << "Bitpack Latency: " << bit_pack_timer.latency() << "ms\t" << "AVG: "<< bit_pack_timer.avg_latency() <<" ms"<< std::endl;
 
 	std::cout << "Output Throughput from Encoder: " << output_throughput << " Mb/s."
 			<< " (Latency: " << output_latency << "s)." << std::endl;
-	std::cout << "Output Throughput from Encoder without LZW: " << output_throughput_wo_lzw << " Mb/s."
-			<< " (Latency: " << op_latency_wo_lzw<< "s)." << std::endl;
+	std::cout << "Output Throughput from Encoder without LZW: " << std::min(std::min(cdc_throughput,SHA_throughput),chunk_matching_throughput) << " Mb/s."<<"\n";
+			//<< " (Latency: " << op_latency_wo_lzw<< "s)." << std::endl;
+	std::cout << "Output Throughput from CDC: " << cdc_throughput	 << " Mb/s." << std::endl;
+	std::cout << "Output Throughput from SHA: " << SHA_throughput << " Mb/s." << std::endl;
+	std::cout << "Output Throughput from Chunk Matching: " << chunk_matching_throughput << " Mb/s." << std::endl;
+	std::cout << "Output Throughput from LZW: " << LZW_throughput << " Mb/s." << std::endl;
 
 	return 0;
 }

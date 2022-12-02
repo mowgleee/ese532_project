@@ -3,7 +3,7 @@
 CXX = g++
 CXXFLAGS = -std=c++11  -march=armv8-a+crypto -Wall -O3 -DNDEBUG
 LDFLAGS = 
-INCLUDES = sha.h
+INCLUDES = sha.h stopwatch.h
 
 EXECUTABLES = sha
 SRC = sha.cpp

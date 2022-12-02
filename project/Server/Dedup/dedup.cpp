@@ -7,6 +7,7 @@ void chunk_matching(semaphores* sems, packet** packarray)//, std::unordered_map<
 		static uint32_t count=0;
 		makelog(VERB_DEBUG, "Waiting for Dedup Semaphore\n");
 		sem_wait(&(sems->sem_dedup));
+		dedup_sem_timer.start();
 
 
 
@@ -51,8 +52,8 @@ void chunk_matching(semaphores* sems, packet** packarray)//, std::unordered_map<
 				// return;
 			}
 		}
-
-		std::cout<<"\nDEDUP PACKET DONE\n";
+		makelog(VERB_DEBUG,"DEDUP Packet Done");
+		dedup_sem_timer.stop();
 		sem_post(&(sems->sem_lzw));
 		makelog(VERB_DEBUG,"LZW Sempahore Posted");
 		if(count == total_packets)

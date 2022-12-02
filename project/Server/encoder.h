@@ -13,6 +13,10 @@
 int offset = 0;
 unsigned char* file = 0;
 stopwatch bit_pack_timer;
+stopwatch lzw_sem_timer;
+stopwatch cdc_sem_timer;
+stopwatch dedup_sem_timer;
+stopwatch sha_sem_timer;
 unsigned char* input[NUM_PACKETS] = {0};
 uint32_t total_packets = INT_MAX;
 

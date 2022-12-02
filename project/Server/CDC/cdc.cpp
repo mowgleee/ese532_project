@@ -19,6 +19,7 @@ void cdc_eff(packet** packarray, semaphores* sems)
 		unsigned char *buff;
 		std::cout<<"WAITING FOR CDC SEMAPHORE\n";
 		sem_wait(&(sems->sem_cdc));
+		cdc_sem_timer.start();
 		makelog(VERB_DEBUG,"Sem received for CDC");
 		static uint32_t count=0;
 		packet *pptr;
@@ -70,6 +71,7 @@ void cdc_eff(packet** packarray, semaphores* sems)
 		makelog(VERB_DEBUG,"Upper bound of chunk %d equal to: %d \n", chunk_num, pptr->curr_chunk[chunk_num].upper_bound);
 		makelog(VERB_DEBUG,"Size  of chunk %d \n", pptr->curr_chunk[chunk_num].size );
 		makelog(VERB_DEBUG,"Num  of chunk %d \n", pptr->num_of_chunks );
+		cdc_sem_timer.stop();
 		
 		sem_post(&(sems->sem_sha));
 		makelog(VERB_DEBUG,"SHA Semaphore Posted");

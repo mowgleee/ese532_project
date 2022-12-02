@@ -64,6 +64,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
     {
         static uint32_t count = 0;
         sem_wait(&(sems->sem_lzw));
+        lzw_sem_timer.start();
         packet* pptr;
         uint8_t* buff;
         buff = input[count%NUM_PACKETS];
@@ -110,7 +111,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
 
                 // Writing chunk header to global file pointer
                 uint32_t chunk_header = (*(kernel_cl_obj->ptr_output_size) << 1);
-                std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
+                //std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
                 memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
                 offset += sizeof(uint32_t);
 
@@ -128,6 +129,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         // sem_post(&(sems->sem_cdc));
 
         std::cout<<"\nLZW PACKET DONE\n";
+        lzw_sem_timer.stop();
         sem_post(&(sems->sem_getpacket));
         std::cout<<"\nPosted getpacket semaphore\n";
         if(count == total_packets)
