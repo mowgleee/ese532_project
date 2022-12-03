@@ -21,12 +21,14 @@ void lzw_SW(const unsigned char* input_packet,
     {
         if(is_chunk_unique[z])
 		{
-            string s1="";
+            string s1;
             
-            for(uint32_t j = 0; j < chunk_bndry[z] + 1; j++)
+            for(uint32_t j = last_boundary; j < chunk_bndry[z] + 1; j++)
 			{
-				s1 += input_packet[j + last_boundary];
+				s1 += input_packet[j];
 			}
+
+            cout << "\nChunk in SW: " << s1 << "\n";
 
             unordered_map<string, int> table;
             for (int i = 0; i <= 255; i++) {
@@ -131,21 +133,30 @@ void lzw_SW(const unsigned char* input_packet,
 bool compare_outputs(uint8_t* sw_output_code, uint8_t *hw_output_code, uint32_t size)
 {
     bool Equal = true;
+    uint32_t mismatches = 0;
     for (int i=0; i<size; i++)
     {
         if(sw_output_code[i] != hw_output_code[i])
         {
             // cout<<"SW out code: "<<sw_output_code[i]<<" HW out code: "<<hw_output_code[i]<<'\n';
+            std::cout<<"***********failed for iter: "<<i<<"************\n";
             std::bitset<8> x(sw_output_code[i]);
             std::bitset<8> y(hw_output_code[i]);
-            std::cout <<"SW out code: "<< x << " HW out code: " << y<<"\n";
+            std::cout <<"SW out code: "<< x << " HW out code: " << y<<"\n\n";
             Equal = false;
+            mismatches++;
         }
         else
         {
             std::cout<<"passed for iter: "<<i<<"\n";
+            std::bitset<8> x(sw_output_code[i]);
+            std::bitset<8> y(hw_output_code[i]);
+            std::cout <<"SW out code: "<< x << " HW out code: " << y<<"\n\n";
         }
     }
+
+    std::cout <<"--------------MISMATCHES: "<< mismatches <<"---------------\n\n";
+
     return Equal;
 }
 
@@ -153,9 +164,13 @@ int main()
 {
     // Generating input data for testing
     // input packet size = 622 (MAX = 1024)
-    const unsigned char* input_packet = reinterpret_cast<const unsigned char *>("tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric");
-    uint32_t chunk_bndry[] = {12, 280, 471, 621};
-    uint32_t num_chunks = 1;
+    const unsigned char* input_packet = reinterpret_cast<const unsigned char *>("abc tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric");
+  
+    // uint32_t chunk_bndry[] = {2, 10, 471, 621};     // WARNING: Hls::stream 'bit_pack_out_flag' is read while empty, which may result in RTL simulation hanging.
+    uint32_t chunk_bndry[] = {20, 150, 471, 621};
+    // uint32_t chunk_bndry[] = {152, 300, 471, 621};
+  
+    uint32_t num_chunks = 2;
     bool is_chunk_unique[] = {1, 1, 0, 1};
     uint32_t dup_chunk_head[] = {0, 0, 12, 0};
     
@@ -166,21 +181,18 @@ int main()
     uint32_t* output_size_HW = (uint32_t*)calloc(1, sizeof(uint32_t));
     uint32_t* output_size_SW = (uint32_t*)calloc(1, sizeof(uint32_t));
 
+    lzw_SW(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
     lzw_kernel(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_HW, output_size_HW, dup_chunk_head);
 
-    lzw_SW(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
-
-    // std::cout<<"\nOUTPUT SIZE SW: "<< offset_pack<<"  HW: "<<(*output_code_size)<<"\n";
-
-    bool data_Equal = compare_outputs(output_file_SW, output_file_HW, (*output_size_SW));
+    bool data_Equal = compare_outputs(output_file_SW, output_file_HW, (*output_size_HW));
     bool size_Equal = (*output_size_SW == *output_size_HW);
+
+    std::cout << "Hardware output size = " << *output_size_HW << "\nSoftware output size = " << *output_size_SW << std::endl;
+    std::cout << "OUTPUT SIZE " << (size_Equal ? "EQUAL" : "NOT EQUAL") << std::endl;
+    std::cout << "TESTBENCH " << (data_Equal ? "PASSED" : "FAILED") << "\n\n";
 
     free(output_file_HW);
     free(output_file_SW);
     free(output_size_HW);
     free(output_size_SW);
-
-    std::cout << "Hardware output size = " << *output_size_HW << "\nSoftware output size = " << *output_size_SW << std::endl;
-    std::cout << "SIZE " << (size_Equal ? "EQUAL" : "NOT EQUAL") << " for hardware and software output." << std::endl;
-    std::cout << "TESTBENCH " << (data_Equal ? "PASSED" : "FAILED") << std::endl;
 }
