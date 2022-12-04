@@ -108,25 +108,25 @@ int main(int argc, char* argv[]) {
 		printf("help\n");
 	}
 
-	for (int i = 0; i < NUM_PACKETS; i++) {
-		input[i] = (unsigned char*) malloc(
-				sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
+	// for (int i = 0; i < NUM_PACKETS; i++) {
+	// 	input[i] = (unsigned char*) malloc(
+	// 			sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
+	// 	if (input[i] == NULL) {
+	// 		std::cout << "aborting " << std::endl;
+	// 		return 1;
+	// 	}
+	// }
+	
+	// input
+
+	for (uint32_t i = 0; i < NUM_PACKETS; i++)
+	{
+		posix_memalign((void**)&input[i], 4096, sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
 		if (input[i] == NULL) {
 			std::cout << "aborting " << std::endl;
 			return 1;
 		}
 	}
-	// input
-
-	// for (uint32_t i = 0; i < NUM_PACKETS; i++)
-	// {
-	// 	posix_memalign(input, 4096, sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
-	// 	if (input[i] == NULL) {
-	// 		std::cout << "aborting " << std::endl;
-	// 		return 1;
-	// 	}
-
-	// }
 
 
 	server.setup_server(blocksize);

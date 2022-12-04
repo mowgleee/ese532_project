@@ -18,7 +18,7 @@ stopwatch cdc_sem_timer;
 stopwatch dedup_sem_timer;
 stopwatch sha_sem_timer;
 unsigned char* input[NUM_PACKETS] = {0};
-// unsigned char **input 
+// unsigned char **input; 
 uint32_t total_packets = INT_MAX;
 
 stopwatch kernel_init_timer;
