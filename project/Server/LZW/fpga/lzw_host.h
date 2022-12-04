@@ -40,20 +40,29 @@ class lzw_request
     cl::Buffer        input_buf;
     cl::Buffer        output_buf;
     cl::Buffer        output_size_buf;
+    cl::Buffer        chunk_boundaries_buf;
+    cl::Buffer        is_unique_buf;
+    cl::Buffer        dup_chunk_head_buf;
 
     std::vector<cl::Event> write_events, exec_events, read_events;
     cl::Event write_ev, exec_ev, read_ev;
 
     const size_t  output_chunk_bytes = MAX_CHUNK_SIZE * sizeof(unsigned char);
-    size_t        input_chunk_bytes;
+    size_t        input_chunk_bytes;// = MAX_CHUNK_SIZE * sizeof(unsigned char);
+    size_t        chunk_boundaries_bytes;// = MAX_NUM_CHUNKS + sizeof(uint32_t);
+    size_t        is_unique_bytes;// = MAX_NUM_CHUNKS + sizeof(uint8_t);
+    size_t        dup_chunk_head_bytes;// = MAX_NUM_CHUNKS + sizeof(uint32_t);;
 
     public:
     lzw_request();
     ~lzw_request();
-    void init(uint32_t chunk_size, unsigned char* input_to_fpga, uint32_t* ptr_output_size);
+    void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga);
     void run();
     unsigned char* output_from_fpga;
     uint32_t* ptr_output_size;
+    uint32_t* chunk_boundaries;
+    uint8_t *is_unique;
+    uint32_t* dup_chunk_head;
 };
 
 void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems,packet** packarray);

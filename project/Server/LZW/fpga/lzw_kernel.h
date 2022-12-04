@@ -25,10 +25,10 @@ uint64_t MurmurHash64( const unsigned char * data, int len);
 int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val);
 // void lzw_kernel(unsigned char* input, uint32_t size, /*std::vector<int>,*/ uint8_t* output_code_packed, uint32_t* output_code_size);
 
-void lzw_kernel(const unsigned char* input_packet,
+void lzw_kernel(unsigned char* input_packet,
 				uint32_t* chunk_bndry,
 				uint32_t num_chunks,
-				bool* is_chunk_unique,
+				uint8_t* is_chunk_unique,
 				uint8_t* output_file,
 				uint32_t* output_size,
 				uint32_t* dup_chunk_head);

@@ -42,6 +42,7 @@
 
 
 #define MAX_CHUNK_SIZE 8*1024
+#define MAX_NUM_CHUNKS (BLOCKSIZE/MIN_CHUNK_SIZE)
 #define CODE_LENGTH 13//log2(MAX_CHUNK_SIZE)
 
 
@@ -95,7 +96,7 @@ typedef struct packet
 	uint32_t num = 0;
 	uint32_t size = 0;
 	uint32_t num_of_chunks = 0;
-	chunk curr_chunk[BLOCKSIZE/MIN_CHUNK_SIZE];
+	chunk curr_chunk[MAX_NUM_CHUNKS];
 }packet;
 
 typedef struct semaphores

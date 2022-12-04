@@ -6,7 +6,7 @@ using namespace std;
 void lzw_SW(const unsigned char* input_packet,
             uint32_t* chunk_bndry,
             uint32_t num_chunks,
-            bool* is_chunk_unique,
+            uint8_t* is_chunk_unique,
             uint8_t* output_file_SW,
             uint32_t* output_size_SW,
             uint32_t* dup_chunk_head)
@@ -164,25 +164,33 @@ int main()
 {
     // Generating input data for testing
     // input packet size = 622 (MAX = 1024)
-    const unsigned char* input_packet = reinterpret_cast<const unsigned char *>("abc tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric");
-  
+    unsigned char input_packet[] = "abc tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric";
+    // uint8_t* input_packet = &_input_packet[0];
     // uint32_t chunk_bndry[] = {2, 10, 471, 621};     // WARNING: Hls::stream 'bit_pack_out_flag' is read while empty, which may result in RTL simulation hanging.
-    uint32_t chunk_bndry[] = {20, 150, 471, 621};
+    uint32_t chunk_bndry[] = {50, 200, 471, 626};
+    // uint32_t *chunk_bndry = (uint32_t*)calloc(4, sizeof(uint32_t));
+    // chunk_bndry[0] = 50;
+    // chunk_bndry[1] = 200;
+    // chunk_bndry[2] = 471;
+    // chunk_bndry[3] = 626;
     // uint32_t chunk_bndry[] = {152, 300, 471, 621};
   
-    uint32_t num_chunks = 2;
-    bool is_chunk_unique[] = {1, 1, 0, 1};
-    uint32_t dup_chunk_head[] = {0, 0, 12, 0};
+    uint32_t num_chunks = 4;
+    uint8_t is_chunk_unique[] = {1, 1, 0, 1};
+    // uint8_t *is_chunk_unique=&_is_chunk_unique[0];
+    uint32_t dup_chunk_head[] = {13, 22, 4, 6};
+    // uint32_t* dup_chunk_head = &_dup_chunk_head[0];
     
     // Output file pointer
-    uint8_t* output_file_HW = (uint8_t*)calloc(8096, sizeof(uint8_t));
-    uint8_t* output_file_SW = (uint8_t*)calloc(8096, sizeof(uint8_t));
+    uint8_t* output_file_HW = (uint8_t*)calloc(8192, sizeof(uint8_t));
+    uint8_t* output_file_SW = (uint8_t*)calloc(8192, sizeof(uint8_t));
     // Output size pointer
     uint32_t* output_size_HW = (uint32_t*)calloc(1, sizeof(uint32_t));
     uint32_t* output_size_SW = (uint32_t*)calloc(1, sizeof(uint32_t));
 
-    lzw_SW(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
     lzw_kernel(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_HW, output_size_HW, dup_chunk_head);
+    lzw_SW(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
+    
 
     bool data_Equal = compare_outputs(output_file_SW, output_file_HW, (*output_size_HW));
     bool size_Equal = (*output_size_SW == *output_size_HW);
@@ -195,4 +203,5 @@ int main()
     free(output_file_SW);
     free(output_size_HW);
     free(output_size_SW);
+    // free(chunk_bndry);
 }
