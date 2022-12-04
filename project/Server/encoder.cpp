@@ -118,15 +118,15 @@ int main(int argc, char* argv[]) {
 	}
 	// input
 
-	for (uint32_t i = 0; i < NUM_PACKETS; i++)
-	{
-		posix_memalign(input, 4096, sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
-		if (input[i] == NULL) {
-			std::cout << "aborting " << std::endl;
-			return 1;
-		}
+	// for (uint32_t i = 0; i < NUM_PACKETS; i++)
+	// {
+	// 	posix_memalign(input, 4096, sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
+	// 	if (input[i] == NULL) {
+	// 		std::cout << "aborting " << std::endl;
+	// 		return 1;
+	// 	}
 
-	}
+	// }
 
 
 	server.setup_server(blocksize);
