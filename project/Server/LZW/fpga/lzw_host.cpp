@@ -16,7 +16,7 @@ lzw_request::lzw_request()
     OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
-    output_from_fpga = (unsigned char *)calloc(MAX_NUM_CHUNKS*13/8, sizeof(unsigned char));
+    // output_from_fpga = (unsigned char *)calloc(MAX_NUM_CHUNKS*13/8, sizeof(unsigned char));
     ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
  
     chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
@@ -26,11 +26,14 @@ lzw_request::lzw_request()
 
 lzw_request::~lzw_request()
 {
-    free(output_from_fpga);
+    // free(output_from_fpga);
+    free(chunk_boundaries);
+    free(dup_chunk_head);
+    free(is_unique);
     free(ptr_output_size);
 }
 
-void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga)//, uint32_t* ptr_output_size)
+void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint32_t* file_ptr)//, uint32_t* ptr_output_size)
 {
     input_chunk_bytes = packet_size * sizeof(unsigned char);
 
@@ -39,8 +42,8 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
     dup_chunk_head_bytes = num_chunks * sizeof(uint32_t);
 
 
-    OCL_CHECK(err, input_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_chunk_bytes, input_to_fpga, &err));
-    OCL_CHECK(err, output_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_chunk_bytes/*CONST CLASS MEMBER*/, output_from_fpga, &err));
+    OCL_CHECK(err, input_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga, &err));
+    OCL_CHECK(err, output_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes/*CONST CLASS MEMBER*/, file_ptr, &err));
     OCL_CHECK(err, output_size_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size, &err));
 
     OCL_CHECK(err, chunk_boundaries_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, chunk_boundaries_bytes, chunk_boundaries, &err));
@@ -125,7 +128,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
                 // uint32_t* ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
             
                 kernel_init_timer.start();
-                kernel_cl_obj->init(packet_size, num_chunks, &buff[pptr->curr_chunk[0].lower_bound]);//, kernel_cl_obj->ptr_output_size);
+                kernel_cl_obj->init(packet_size, num_chunks, &buff[pptr->curr_chunk[0].lower_bound], &file[offset]);//, kernel_cl_obj->ptr_output_size);
                 kernel_init_timer.stop();
 
             
@@ -154,7 +157,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
                 // offset += sizeof(uint32_t);
 
                 // Writing compressed chunk reveived from fpga to global file pointer
-                memcpy(&file[offset], kernel_cl_obj->output_from_fpga, *(kernel_cl_obj->ptr_output_size));
+                // memcpy(&file[offset], kernel_cl_obj->output_from_fpga, *(kernel_cl_obj->ptr_output_size));
                 offset+= *(kernel_cl_obj->ptr_output_size);
         //     }
         //     else
