@@ -56,7 +56,7 @@ class lzw_request
     public:
     lzw_request();
     ~lzw_request();
-    void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga);
+    void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr);
     void run();
     // unsigned char* output_from_fpga;
     uint32_t* ptr_output_size;

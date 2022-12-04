@@ -33,9 +33,9 @@ lzw_request::~lzw_request()
     free(ptr_output_size);
 }
 
-void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint32_t* file_ptr)//, uint32_t* ptr_output_size)
+void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr)//, uint32_t* ptr_output_size)
 {
-    input_chunk_bytes = packet_size * sizeof(unsigned char);
+    input_pkt_bytes = packet_size * sizeof(unsigned char);
 
     chunk_boundaries_bytes = num_chunks * sizeof(uint32_t);
     is_unique_bytes = num_chunks * sizeof(uint8_t);
