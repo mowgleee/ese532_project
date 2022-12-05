@@ -38,7 +38,7 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
 {
     makelog(VERB_DEBUG, "Entered LZW initialization function.\n");
 
-    input_pkt_bytes = packet_size * sizeof(unsigned char);
+    input_pkt_bytes = (packet_size + 2) * sizeof(unsigned char);
     
     output_pkt_bytes = (NUM_ELEMENTS*13) * sizeof(unsigned char);
     // output_pkt_bytes = packet_size * sizeof(unsigned char);

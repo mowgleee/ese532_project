@@ -56,7 +56,8 @@ extern stopwatch sha_sem_timer;
 
 extern unsigned char* input[NUM_PACKETS];
 extern  uint32_t total_packets;
-// stopwatch kernel_init_timer;
+// stopwatch kernel_init_time
+
 // stopwatch kernel_timer;
 // stopwatch kernel_mem_timer;
 // extern stopwatch kernel_timer;
@@ -64,7 +65,7 @@ extern  uint32_t total_packets;
 #define VERB_LOW 0
 #define VERB_MED 1
 #define VERB_HIGH 2
-#define VERB_DEBUG VERB_HIGH
+#define VERB_DEBUG VERB_LOW
 
 inline void makelog(uint8_t verb, const char *fmt, ...)
 {
