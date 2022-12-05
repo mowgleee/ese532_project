@@ -107,16 +107,6 @@ int main(int argc, char* argv[]) {
 	if (file == NULL) {
 		printf("help\n");
 	}
-
-	// for (int i = 0; i < NUM_PACKETS; i++) {
-	// 	input[i] = (unsigned char*) malloc(
-	// 			sizeof(unsigned char) * (NUM_ELEMENTS + HEADER));
-	// 	if (input[i] == NULL) {
-	// 		std::cout << "aborting " << std::endl;
-	// 		return 1;
-	// 	}
-	// }
-	
 	// input
 
 	for (uint32_t i = 0; i < NUM_PACKETS; i++)
