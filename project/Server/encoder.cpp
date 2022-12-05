@@ -64,7 +64,7 @@ void handle_input(int argc, char* argv[], int* blocksize) {
 int main(int argc, char* argv[]) {
 
 	pin_main_thread_to_cpu0();
-
+	makelog(VERB_DEBUG, "Kum chutiya Encoder.\n");
 	
 	char *fileName[50];
 	if(argc==4){
@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
 	total_input_size += length;
 	output_timer.start();
 	lzw_timer.start();
-	lzw_request kernel_cl_obj;
+	// lzw_request kernel_cl_obj;
 	lzw_timer.stop();
 	
 
@@ -223,15 +223,14 @@ int main(int argc, char* argv[]) {
 	//lzw_timer.start();
 	// lzw_encoding(&buffer[0], pptr);
 	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
-	ths.push_back(std::thread(&lzw_host, &kernel_cl_obj, &sems, packarray));
+
+	ths.push_back(std::thread(&lzw_host, /*&kernel_cl_obj,*/ &sems, packarray));
 	pin_thread_to_cpu(ths[3], 3);
 	//lzw_timer.stop();
-	makelog(VERB_DEBUG,"LZW thread activated\n");
+	makelog(VERB_DEBUG,"LZW thread activated.\n");
 
 
-
-
-	makelog(VERB_DEBUG,"Posting semaphore for cdc \n");
+	makelog(VERB_DEBUG,"Posting semaphore for cdc.\n");
 	sem_post(&(sems.sem_cdc));
 
 	writer++;

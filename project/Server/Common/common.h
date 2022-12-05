@@ -64,7 +64,7 @@ extern  uint32_t total_packets;
 #define VERB_LOW 0
 #define VERB_MED 1
 #define VERB_HIGH 2
-#define VERB_DEBUG VERB_LOW
+#define VERB_DEBUG VERB_HIGH
 
 inline void makelog(uint8_t verb, const char *fmt, ...)
 {

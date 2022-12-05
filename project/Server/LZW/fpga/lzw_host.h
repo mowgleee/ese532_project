@@ -47,7 +47,7 @@ class lzw_request
     std::vector<cl::Event> write_events, exec_events, read_events;
     cl::Event write_ev, exec_ev, read_ev;
 
-    const size_t  output_pkt_bytes = (BLOCKSIZE*13/8) * sizeof(unsigned char);
+    size_t        output_pkt_bytes;// = (BLOCKSIZE*13/8) * sizeof(unsigned char);
     size_t        input_pkt_bytes;// = MAX_CHUNK_SIZE * sizeof(unsigned char);
     size_t        chunk_boundaries_bytes;// = MAX_NUM_CHUNKS + sizeof(uint32_t);
     size_t        is_unique_bytes;// = MAX_NUM_CHUNKS + sizeof(uint8_t);
@@ -56,16 +56,17 @@ class lzw_request
     public:
     lzw_request();
     ~lzw_request();
-    void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr);
+    void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr, uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique);
     void run();
+
     // unsigned char* output_from_fpga;
     uint32_t* ptr_output_size;
-    uint32_t* chunk_boundaries;
-    uint8_t *is_unique;
-    uint32_t* dup_chunk_head;
+    // uint32_t* chunk_boundaries;
+    // uint8_t* is_unique;
+    // uint32_t* dup_chunk_head;
 };
 
-void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems,packet** packarray);
+void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems,packet** packarray);
 
 // OCL_CHECK doesn't work if call has templatized function call
 #define OCL_CHECK(error, call)                                                 \

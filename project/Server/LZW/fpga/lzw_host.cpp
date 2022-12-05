@@ -16,25 +16,32 @@ lzw_request::lzw_request()
     OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
-    // output_from_fpga = (unsigned char *)calloc(MAX_NUM_CHUNKS*13/8, sizeof(unsigned char));
+    // output_from_fpga = (unsigned char *)calloc(BLOCKSIZE*13/8, sizeof(unsigned char));
     ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
-    chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-    dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-    is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+    // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+    // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+    // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+
+    makelog(VERB_DEBUG, "LZW object constructor completed.\n");
 }
 
 lzw_request::~lzw_request()
 {
     // free(output_from_fpga);
-    free(chunk_boundaries);
-    free(dup_chunk_head);
-    free(is_unique);
+    // free(chunk_boundaries);
+    // free(dup_chunk_head);
+    // free(is_unique);
     free(ptr_output_size);
 }
 
-void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr)//, uint32_t* ptr_output_size)
+void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr, uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique)//, uint32_t* ptr_output_size)
 {
+    makelog(VERB_DEBUG, "Entered LZW initialization function.\n");
+
     input_pkt_bytes = packet_size * sizeof(unsigned char);
+    
+    output_pkt_bytes = (BLOCKSIZE*13/8) * sizeof(unsigned char);
+    // output_pkt_bytes = packet_size * sizeof(unsigned char);
 
     chunk_boundaries_bytes = num_chunks * sizeof(uint32_t);
     is_unique_bytes = num_chunks * sizeof(uint8_t);
@@ -42,7 +49,7 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
 
 
     OCL_CHECK(err, input_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga, &err));
-    OCL_CHECK(err, output_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes/*CONST CLASS MEMBER*/, file_ptr, &err));
+    OCL_CHECK(err, output_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes/*CONST CLASS MEMBER*/, /*output_from_fpga*/file_ptr, &err));
     OCL_CHECK(err, output_size_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size, &err));
 
     OCL_CHECK(err, chunk_boundaries_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, chunk_boundaries_bytes, chunk_boundaries, &err));
@@ -56,6 +63,8 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
     OCL_CHECK(err, err = lzw_kernel.setArg(4, output_buf));
     OCL_CHECK(err, err = lzw_kernel.setArg(5, output_size_buf));
     OCL_CHECK(err, err = lzw_kernel.setArg(6, dup_chunk_head_buf));
+
+    makelog(VERB_DEBUG, "Exiting LZW initialization function.\n");
 }
 
 void lzw_request::run()
@@ -77,8 +86,14 @@ void lzw_request::run()
     q.finish();
 }
 
-void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
+void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarray)
 {
+	lzw_request kernel_cl_obj;
+
+    uint32_t* chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+    uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+    uint32_t* dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));;
+
     while(1)
     {
         static uint32_t count = 0;
@@ -96,18 +111,22 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         uint32_t packet_size = pptr->size;
         uint32_t num_chunks = pptr->num_of_chunks;
 
+        // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+        // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+        // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+
         for(uint32_t i = 0; i < num_chunks; i++)
         {
-            kernel_cl_obj->chunk_boundaries[i] = pptr->curr_chunk[i].upper_bound;
-            kernel_cl_obj->dup_chunk_head[i] = pptr->curr_chunk[i].header;
-            kernel_cl_obj->is_unique[i] = pptr->curr_chunk[i].is_unique;
+            chunk_boundaries[i] = pptr->curr_chunk[i].upper_bound;
+            dup_chunk_head[i] = pptr->curr_chunk[i].header;
+            is_unique[i] = pptr->curr_chunk[i].is_unique;
         }
             
         kernel_init_timer.start();
-        kernel_cl_obj->init(packet_size, num_chunks, &buff[pptr->curr_chunk[0].lower_bound], &file[offset]);//, kernel_cl_obj->ptr_output_size);
+        kernel_cl_obj.init(packet_size, num_chunks, &buff[pptr->curr_chunk[0].lower_bound], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
         kernel_init_timer.stop();
 
-        kernel_cl_obj->run();
+        kernel_cl_obj.run();
 
         // ------------------------------------------------------------------------------------
         // Step 4: Release Allocated Resources
@@ -129,7 +148,7 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
 
         // Writing compressed chunk reveived from fpga to global file pointer
         // memcpy(&file[offset], kernel_cl_obj->output_from_fpga, *(kernel_cl_obj->ptr_output_size));
-        offset+= *(kernel_cl_obj->ptr_output_size);
+        offset+= *(kernel_cl_obj.ptr_output_size);
 
         std::cout<<"\nLZW PACKET DONE\n";
         lzw_sem_timer.stop();
@@ -138,6 +157,9 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         if(count == total_packets)
         {
             std::cout<<"LZW count= "<<count<<" total_packets= "<<total_packets<<"\n";
+            free(chunk_boundaries);
+            free(is_unique);
+            free(dup_chunk_head);
             return;
         }
         count++;
