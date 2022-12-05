@@ -40,7 +40,7 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
 
     input_pkt_bytes = packet_size * sizeof(unsigned char);
     
-    output_pkt_bytes = (BLOCKSIZE*13/8) * sizeof(unsigned char);
+    output_pkt_bytes = (NUM_ELEMENTS*13) * sizeof(unsigned char);
     // output_pkt_bytes = packet_size * sizeof(unsigned char);
 
     chunk_boundaries_bytes = num_chunks * sizeof(uint32_t);

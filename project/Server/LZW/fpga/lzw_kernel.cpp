@@ -373,10 +373,11 @@ void store(hls::stream<unsigned char> &output,
 			}
 
 			// Writing unique chunk header to global file pointer
-			uint32_t chunk_header = output_chunk_length << 1;
+			uint32_t chunk_header = 0;
+			chunk_header = output_chunk_length << 1;
 			for(uint32_t j = 0; j < 4; j++)
 			{
-				output_file[offset] = chunk_header >> (8 * (3-j));
+				output_file[offset] = chunk_header >> (8 * j);
 				offset++;
 			}
 			offset += output_chunk_length;
@@ -384,12 +385,12 @@ void store(hls::stream<unsigned char> &output,
 		else
 		{
 			// Writing duplicate chunk header to global file pointer
-			uint32_t size = l_head;
-			uint32_t chunk_header = size << 1;
+			uint32_t chunk_header = l_head;
+			// uint32_t chunk_header = size << 1;
 			
 			for(uint32_t j = 0; j < 4; j++)
 			{
-				output_file[offset] = chunk_header >> (8 * (3-j));
+				output_file[offset] = chunk_header >> (8 * j);
 				offset++;
 			}
 		}
