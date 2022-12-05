@@ -466,7 +466,7 @@ void lzw_kernel(unsigned char* input_packet,
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);
-	load(input_packet, local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
+	load(&input_packet[2], local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
 
 	// lzw_encode(input, chunk_bndry, is_chunk_unique, local_num_chunks, lzw_encode_out);
 	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, boundaries_2, uniques_2, head_2, lzw_encode_out_flag);

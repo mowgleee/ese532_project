@@ -102,7 +102,7 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
         packet* pptr;
         uint8_t* buff;
         buff = input[count%NUM_PACKETS];
-		buff = &buff[HEADER];        
+		buff = &buff[0];   ///for memory allignment. send full packet including header      
         pptr = packarray[count%NUM_PACKETS];
         makelog(VERB_DEBUG,"Semaphore for LZW Received");
         makelog(VERB_DEBUG,"LZW Packet Info:\n LZW Packet Num: %d\n LZW Packet Size: %d\n LZW No of Chunks in Packet: %d\n LZW Count: %d\n",pptr->num,pptr->size,pptr->num_of_chunks,count);
@@ -123,7 +123,7 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
         }
             
         kernel_init_timer.start();
-        kernel_cl_obj.init(packet_size, num_chunks, &buff[pptr->curr_chunk[0].lower_bound], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
+        kernel_cl_obj.init(packet_size, num_chunks, &buff[0], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
         kernel_init_timer.stop();
 
         kernel_cl_obj.run();
