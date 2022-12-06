@@ -121,9 +121,6 @@ int main(int argc, char* argv[]) {
 
 	server.setup_server(blocksize);
 
-	
-	
-	
 	semaphores sems;
 	int ret = 0;
 	// int count = 0;

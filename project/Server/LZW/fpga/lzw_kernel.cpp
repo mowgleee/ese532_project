@@ -1,5 +1,73 @@
 #include "lzw_kernel.h"
 
+
+
+#define HASHMAP_CAPACITY 8192
+#define BUCKET_SIZE	3
+
+typedef struct hashmap_entry {
+  uint64_t key;
+  uint32_t code;
+} hashmap_entry_t;
+
+// typedef struct hashmap {
+// //   size_t size;
+//   hashmap_entry_t entries[HASHMAP_CAPACITY];
+// } hashmap_t;
+
+void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
+  for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
+	for (uint32_t j=0; j<BUCKET_SIZE; j++)
+	{
+    	hash_entries[i][j].key = 0;
+	}
+  }
+  return;
+}
+
+bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint64_t key, uint32_t code) 
+{
+	#pragma HLS inline
+	uint32_t index = key % HASHMAP_CAPACITY;
+
+	for( uint32_t j=0; j<BUCKET_SIZE; j++)
+	{
+		if (hash_entries[index][j].key == 0) 
+		{
+			#pragma HLS unroll
+			hash_entries[index][j].key = key;
+			hash_entries[index][j].code = code;
+			// std::cout<<"putting value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
+			return true;
+		}
+	}
+	// index = (index + 1) % HASHMAP_CAPACITY;
+	// hash_entries[index].key = key;
+	// hash_entries[index].code = code;
+	std::cout<<"couldn't put value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
+	return false;
+//   map->size++;
+}
+
+uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint64_t key)
+{
+	#pragma HLS inline
+	uint32_t index = key % HASHMAP_CAPACITY;
+	for( uint32_t j=0; j<BUCKET_SIZE; j++)
+	{
+		if (hash_entries[index][j].key == key) {
+			// std::cout<<"found key: "<<key<<" at "<<index<<"\n";
+			return hash_entries[index][j].code;
+		}
+	}
+	// index = (index + 1) % HASHMAP_CAPACITY;
+	// std::cout<<"collision for index: "<<index<<"\n";
+	return INT32_MAX;
+}
+
+
+
+
 uint64_t MurmurHash2( const void * key, int len)
 {
 	uint64_t seed = 1;
@@ -66,7 +134,6 @@ void load(unsigned char* input_packet,
 		  hls::stream<uint8_t> &uniques_1,
 		  hls::stream<uint32_t> &head_1)
 {
-	std::cout << "New hardware\n";
 	uint32_t last_boundary = 0;
 
 	uint32_t l_chunk_boundary = 0;
@@ -88,28 +155,13 @@ void load(unsigned char* input_packet,
 		head_1.write(l_head);
 		// std::cout<<"writing bounds, uniques and heads in load\n";
 
-		// for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
-		// {
-		// 	input.write(input_packet[j]);
-		// }
-
-			// for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
-			// {
-			// 	// std::cout<<"reading data in load: ";
-			// 	uint8_t l_data = input_packet[j];
-			// 	// std::cout << l_data << "\n";
-			// 	// std::cout<<"writing data in load\n";
-			// 	input.write(l_data);
-				
-			// }
-
 		if(unique)
 		{
 			for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
 			{
 				// std::cout<<"reading data in load: ";
-				uint8_t l_data = input_packet[j + 2];
-				// std::cout << l_data ;
+				uint8_t l_data = input_packet[j];
+				// std::cout << l_data << "\n";
 				// std::cout<<"writing data in load\n";
 				input.write(l_data);
 				
@@ -127,42 +179,25 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				uint32_t num_chunks,
 				hls::stream<uint32_t> &lzw_encode_out,
 				
-				// hls::stream<uint32_t> &boundaries_2,
+				hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 				hls::stream<uint8_t> &lzw_encode_out_flag)
 {
 	uint64_t resetValue = 0;
-	uint32_t output_code[MAX_NUM_OF_CODES];
-	uint64_t table[MAX_NUM_OF_CODES];
-
-	// Use while loop and reset for multiple chunks
-	for (int i = 0; i < MAX_NUM_OF_CODES; i++)
-	{
-	#pragma HLS PIPELINE II = 1
-	#pragma HLS UNROLL FACTOR = 2
-		table[i] = resetValue;
-	}
+	// uint32_t output_code[MAX_NUM_OF_CODES];
+	// uint64_t table[MAX_NUM_OF_CODES];
 
 	uint64_t hash_val;
 	uint8_t ch = 0;
 	uint32_t code = 0;
-
-    for (code = 0; code <= 255; code++)
-	{
-	#pragma HLS PIPELINE II = 1
-	#pragma HLS UNROLL FACTOR = 2
-        ch = char(code);
-        // ch += char(i);
-		hash_val = MurmurHash2((void*)&ch, 1/*Default single character length*/);
-		table[code] = hash_val;
-    }
 
 	uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
 	uint32_t last_boundary = 0;
+	
 
 	for(uint32_t j = 0; j < num_chunks; j++)
 	{
@@ -170,12 +205,31 @@ void lzw_encode(hls::stream<unsigned char> &input,
 		unique = uniques_1.read();
 		l_head = head_1.read();
 
-		// boundaries_2.write(l_chunk_boundary);
+		boundaries_2.write(l_chunk_boundary);
 		uniques_2.write(unique);
 		head_2.write(l_head);
+		std::cout<<"chunk: "<<j<<"\n";
+		bool already_sent = false;
 
 		if(unique)
 		{
+			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
+			hashmap_create(hash_entries);
+			std::cout<<"created new hash map\n";
+
+			// for (code = 0; code <= 255; code++)
+			// {
+			// 	#pragma HLS PIPELINE II = 1
+			// 	#pragma HLS UNROLL FACTOR = 2
+			// 	ch = char(code);
+			// 	// ch += char(i);
+			// 	hash_val = MurmurHash2((void*)&ch, 1/*Default single character length*/);
+			// 	// table[code] = hash_val;
+			// 	hashmap_put(hash_entries, hash_val, code);
+			// }
+			// std::cout<<"placed first 255 codes\n";
+
+
 			code = 256;
 			uint32_t length = l_chunk_boundary - last_boundary + 1;
 
@@ -189,12 +243,6 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			
 			for (uint32_t i = 0; i < length; i++)
 			{
-				// if(i == 0)
-				// {
-				// 	p[p_idx] = input.read();
-				// 	p_idx++;
-				// }
-
 				if (i != length - 1)
 				{
 					c = input.read();
@@ -204,17 +252,38 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 				// Search algorithm for the array
 				hash_val = MurmurHash2((void*)p, p_idx);
-				int32_t match = search(table, code, hash_val);
+				already_sent=false;
+				// int32_t match = search(table, code, hash_val);
+				int32_t match = hashmap_get(hash_entries, hash_val);
+				// std::cout<<"match: "<<match<<"\n";
 
-				if (match < 0/*table.find(p + c) != table.end()*/) {			// Change the find function
+				if (match == INT32_MAX/*table.find(p + c) != table.end()*/) {			// Change the find function
+					
+					// uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx - 1));
+					int32_t out_code = 0;
+					// std::cout<<"p_idx: "<<p_idx<<"\n";
+					if(p_idx <= 2)
+					{
+						// std::cout<<"sending "<<p[0]<<" for p_idx: "<<p_idx<<"\n";
+						out_code = (int32_t)p[0];
+						already_sent = true;
+					}
+					else
+					{
+						out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx - 1));
+					}
 					lzw_encode_out_flag.write(1);
-					uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx - 1));
 					lzw_encode_out.write(out_code);
+					// uint32_t out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx - 1));
+					// // std::cout<<"Out code: "<<out_code<<"\n";
+					// lzw_encode_out.write(out_code);
+					hashmap_put(hash_entries, hash_val, code);
 					// std::cout<<"Out code: "<<out_code<<"\n";
 					// op_idx++;
 
 					// table[p + c] = code;
-					table[code] = hash_val;
+					// table[code] = hash_val;
+
 					
 					code++;
 					p_idx = 0;
@@ -222,9 +291,13 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					p_idx++;
 				}
 			}
-			lzw_encode_out_flag.write(1);
-			uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx));
-			lzw_encode_out.write(out_code);
+			if(!already_sent)
+			{
+				lzw_encode_out_flag.write(1);
+				// uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx));
+				uint32_t out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx));
+				lzw_encode_out.write(out_code);
+			}
 			// std::cout<<"Out code outside if(match<0): "<<out_code<<"\n";
 			lzw_encode_out_flag.write(0);
 		}
@@ -244,11 +317,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 
 				hls::stream<uint8_t> &lzw_encode_out_flag,
 			
-				// hls::stream<uint32_t> &boundaries_2,
+				hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 			
-				// hls::stream<uint32_t> &boundaries_3,
+				hls::stream<uint32_t> &boundaries_3,
 				hls::stream<uint8_t> &uniques_3,
 				hls::stream<uint32_t> &head_3,
 				
@@ -256,7 +329,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 				
 				hls::stream<uint8_t> &bit_pack_out_flag)
 {
-	// uint32_t l_chunk_boundary = 0;
+	uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -264,11 +337,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 	{
 		// uint32_t bit_pack_counter = 0;
 		
-		// l_chunk_boundary = boundaries_2.read();
+		l_chunk_boundary = boundaries_2.read();
 		unique = uniques_2.read();
 		l_head = head_2.read();
 
-		// boundaries_3.write(l_chunk_boundary);
+		boundaries_3.write(l_chunk_boundary);
 		uniques_3.write(unique);
 		head_3.write(l_head);
 
@@ -332,7 +405,7 @@ void store(hls::stream<unsigned char> &output,
 		   uint8_t* output_file,
 		   uint32_t* output_size,
 		   
-			// hls::stream<uint32_t> &boundaries_3,
+			hls::stream<uint32_t> &boundaries_3,
 			hls::stream<uint8_t> &uniques_3,
 			hls::stream<uint32_t> &head_3,
 
@@ -340,7 +413,7 @@ void store(hls::stream<unsigned char> &output,
 {
 	uint32_t offset = 0;
 
-	// uint32_t l_chunk_boundary = 0;
+	uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -348,7 +421,7 @@ void store(hls::stream<unsigned char> &output,
 	{
 		// uint32_t store_counter = 0;
 
-		// l_chunk_boundary = boundaries_3.read();
+		l_chunk_boundary = boundaries_3.read();
 		unique = uniques_3.read();
 		l_head = head_3.read();
 
@@ -432,11 +505,11 @@ void lzw_kernel(unsigned char* input_packet,
 	hls::stream<uint8_t, 512> uniques_1("uniques_1");
 	hls::stream<uint32_t, 512> head_1("head_1");
 
-	// hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
+	hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
 	hls::stream<uint8_t, 512> uniques_2("uniques_2");
 	hls::stream<uint32_t, 512> head_2("head_2");
 
-	// hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
+	hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
 	hls::stream<uint8_t, 512> uniques_3("uniques_3");
 	hls::stream<uint32_t, 512> head_3("head_3");
 
@@ -467,15 +540,15 @@ void lzw_kernel(unsigned char* input_packet,
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);
-	load(input_packet, local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
+	load(&input_packet[2], local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
 
 	// lzw_encode(input, chunk_bndry, is_chunk_unique, local_num_chunks, lzw_encode_out);
-	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, /*boundaries_2,*/ uniques_2, head_2, lzw_encode_out_flag);
+	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, boundaries_2, uniques_2, head_2, lzw_encode_out_flag);
 
 	// bit_pack(lzw_encode_out, is_chunk_unique, local_num_chunks, packed_size, bit_pack_out);
-	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, /*boundaries_2,*/ uniques_2, head_2, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
+	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, boundaries_2, uniques_2, head_2, boundaries_3, uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
 
 	// store(bit_pack_out, packed_size, is_chunk_unique, local_num_chunks, dup_chunk_head, output_file, output_size);
-	store(bit_pack_out, local_num_chunks, output_file, output_size, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out_flag);
+	store(bit_pack_out, local_num_chunks, output_file, output_size, boundaries_3, uniques_3, head_3, bit_pack_out_flag);
 
 }
