@@ -5,7 +5,7 @@
 // Constructor for lzw_request class to be called once when creating object
 lzw_request::lzw_request()
 {
-    binaryFile = "LZW_encoding_HW.xclbin";
+    binaryFile = "lzw_kernel.xclbin";
     devices = get_xilinx_devices();
     devices.resize(1);
     device = devices[0];
@@ -14,7 +14,7 @@ lzw_request::lzw_request()
     bins = cl::Program::Binaries{{fileBuf, fileBufSize}};
     OCL_CHECK(err, program = cl::Program(context, devices, bins, NULL, &err));
     OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
-    OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "LZW_encoding_HW", &err));
+    OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
     // output_from_fpga = (unsigned char *)calloc(BLOCKSIZE*13/8, sizeof(unsigned char));
     ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
@@ -38,7 +38,7 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
 {
     makelog(VERB_DEBUG, "Entered LZW initialization function.\n");
 
-    input_pkt_bytes = (packet_size + 2) * sizeof(unsigned char);
+    input_pkt_bytes = (packet_size + 2) * sizeof(unsigned char);    // +2 for packet header
     
     output_pkt_bytes = (NUM_ELEMENTS*13) * sizeof(unsigned char);
     // output_pkt_bytes = packet_size * sizeof(unsigned char);
@@ -46,9 +46,6 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
     chunk_boundaries_bytes = num_chunks * sizeof(uint32_t);
     is_unique_bytes = num_chunks * sizeof(uint8_t);
     dup_chunk_head_bytes = num_chunks * sizeof(uint32_t);
-
-    uint64_t num_chunks_temp = (uint64_t)num_chunks;
-
 
     OCL_CHECK(err, input_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga, &err));
     OCL_CHECK(err, output_buf = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes/*CONST CLASS MEMBER*/, /*output_from_fpga*/file_ptr, &err));
@@ -60,11 +57,11 @@ void lzw_request::init(uint32_t packet_size, uint32_t num_chunks, unsigned char*
 
     OCL_CHECK(err, err = lzw_kernel.setArg(0, input_buf));
     OCL_CHECK(err, err = lzw_kernel.setArg(1, chunk_boundaries_buf));
-    OCL_CHECK(err, err = lzw_kernel.setArg(4, num_chunks_temp));
+    OCL_CHECK(err, err = lzw_kernel.setArg(2, num_chunks));
     OCL_CHECK(err, err = lzw_kernel.setArg(3, is_unique_buf));
-    OCL_CHECK(err, err = lzw_kernel.setArg(5, output_buf));
-    OCL_CHECK(err, err = lzw_kernel.setArg(6, output_size_buf));
-    OCL_CHECK(err, err = lzw_kernel.setArg(2, dup_chunk_head_buf));
+    OCL_CHECK(err, err = lzw_kernel.setArg(4, output_buf));
+    OCL_CHECK(err, err = lzw_kernel.setArg(5, output_size_buf));
+    OCL_CHECK(err, err = lzw_kernel.setArg(6, dup_chunk_head_buf));
 
     makelog(VERB_DEBUG, "Exiting LZW initialization function.\n");
 }
@@ -92,9 +89,18 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
 {
 	lzw_request kernel_cl_obj;
 
-    uint32_t* chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-    uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
-    uint32_t* dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));;
+    // uint32_t* chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+    // uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+    // uint32_t* dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
+
+    uint32_t* chunk_boundaries;
+    uint8_t* is_unique;
+    uint32_t* dup_chunk_head;
+
+    posix_memalign((void**)&chunk_boundaries, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+    posix_memalign((void**)&is_unique, 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
+    posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+    
 
     while(1)
     {
@@ -103,9 +109,9 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
         lzw_sem_timer.start();
         packet* pptr;
         uint8_t* buff;
-        buff = input[count%NUM_PACKETS];
-		buff = &buff[HEADER];   ///for memory allignment. send full packet including header
-        pptr = packarray[count%NUM_PACKETS];
+        buff = input[count % NUM_PACKETS];
+		buff = &buff[0];   ///for memory allignment. send full packet including header
+        pptr = packarray[count % NUM_PACKETS];
         makelog(VERB_DEBUG,"Semaphore for LZW Received");
         makelog(VERB_DEBUG,"LZW Packet Info:\n LZW Packet Num: %d\n LZW Packet Size: %d\n LZW No of Chunks in Packet: %d\n LZW Count: %d\n",pptr->num,pptr->size,pptr->num_of_chunks,count);
 
@@ -119,9 +125,9 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
 
         for(uint32_t i = 0; i < num_chunks; i++)
         {
-            chunk_boundaries[i] = pptr->curr_chunk[i].size;
-            dup_chunk_head[i] = (pptr->curr_chunk[i].header >> 1);
-            is_unique[i] = !(pptr->curr_chunk[i].is_unique);
+            chunk_boundaries[i] = pptr->curr_chunk[i].upper_bound;
+            dup_chunk_head[i] = pptr->curr_chunk[i].header;
+            is_unique[i] = pptr->curr_chunk[i].is_unique;
         }
             
         kernel_init_timer.start();
