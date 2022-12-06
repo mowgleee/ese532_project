@@ -102,7 +102,8 @@ int main(int argc, char* argv[]) {
 	// set blocksize if decalred through command line
 	handle_input(argc, argv, &blocksize);
 
-	file = (unsigned char*) malloc(sizeof(unsigned char) * 70000000);
+	// file = (unsigned char*) malloc(sizeof(unsigned char) * 70000000);
+	posix_memalign((void**)&file, 4096, sizeof(uint8_t) * (70000000));
 	
 	if (file == NULL) {
 		printf("help\n");
