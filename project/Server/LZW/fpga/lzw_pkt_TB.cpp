@@ -3,7 +3,7 @@
 
 using namespace std;
 
-void lzw_SW(const unsigned char* input_packet,
+void lzw_SW(unsigned char* input_packet,
             uint32_t* chunk_bndry,
             uint32_t num_chunks,
             uint8_t* is_chunk_unique,
@@ -12,8 +12,9 @@ void lzw_SW(const unsigned char* input_packet,
             uint32_t* dup_chunk_head)
 {
 
+
     // cout<<"\nsw length of string: "<<s1.length();
-    // cout << "Encoding\n";
+    cout << "New Software Encoding\n";
     uint32_t offset = 0;
     uint32_t last_boundary = 0;
 
@@ -165,12 +166,12 @@ int main()
 {
     // Generating input data for testing
     // input packet size = 622 (MAX = 1024)
-   unsigned char input_packet[] = "abc tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric";
-	// unsigned char input_packet[] = "The Autobiography of Benjamin Franklin edited by Charles Eliot presented\nby Project Gutenberg\n\nThis eBook is for the use of anyone anywhere at no cost and with almost\nno restrictions whatsoever. You may copy it, give it away or re-use it\nunder the terms of the Project Gutenberg License included with this\neBook or online at www.gutenberg.net\n\nTitle: The Autobiography of Benjamin Franklin\nEditor: Charles Eliot\nRelease Date: May 22, 2008 [EBook #148]\nLast Updated: July 2016\nLanguage: English\n\nProduced by Project Gutenberg. HTML version by Robert Homa.\n\n*** START OF THIS PROJECT GUTENBERG EBOOK THE AUTOBIOGRAPHY OF BENJAMIN\nFRANKLIN ***\n\nTitle: The Autobiography of Benjamin Franklin\n\nAuthor: Benjamin Franklin\n\nFirst Released: August 4, 1995 [Ebook: #148]\n[Last updated: August 2, 2016]\n\nLanguage: English\n\n*** START OF THIS PROJECT GUTENBERG EBOOK AUTOBIOGRAPHY OF BENJAMIN\nFRANKLIN ***\n\nTHE AUTOBIOGRAPHY OF BENJAMIN FRANKLIN\n\nThe Harvard Classics\n\nWITH INTRODUCTION AND NOTES\n\nEDITED BY\n\nCHARLES W ELLIOT LLD\n\nP F COLLIER & SON COMPANY\nNEW YORK\n1909\n\n\n\n\nNavigation\n\n    Letter from Mr. Abel James.\n    Publishes the first number of \"Poor Richard's Almanac.\n    Proposes a Plan of Union for the colonies\n    Chief events in Franklin's life.\n\nINTRODUCTORY NOTE\n\nBenjamin Franklin was born in Milk Street, Boston, on January 6, 1706.\nHis father, Josiah Franklin, was a tallow chandler who married twice,\nand of his seventeen children Benjamin was the youngest son. His\nschooling ended at ten, and at twelve he was bound apprentice to his\nbrother James, a printer, who published the \"New England Courant.\" To\nthis journal he became a contributor, and later was for a time its\nnominal editor. But the brothers quarreled, and Benjamin ran away, going\nfirst to New York, and thence to Philadelphia, where he arrived in\nOctober, 1723. He soon obtained work as a printer, but after a few\nmonths he was induced by Governor Keith to go to London, where, finding\nKeith's promises empty, he again worked as a compositor till he was\nbrought back to Philadelphia by a merchant named Denman, who gave him a\nposition in his business. On Denman's death he returned to his former\ntrade, and shortly set up a printing house of his own from which he\npublished \"The Pennsylvania Gazette,\" to which he contributed many\nessays, and which he made a medium for agitating a variety of local\nreforms. In 1732 he began to issue his famous \"Poor Richard's Almanac\"\nfor the enrichment of which he borrowed or composed those pithy\nutterances of worldly wisdom which are the basis of a large part of his\npopular reputation. In 1758, the year in which he ceased writing for the\nAlmanac, he printed in it \"Father Abraham's Sermon,\" now regarded as the\nmost famous piece of literature produced in Colonial America.";
+//    unsigned char input_packet[] = "01abc tors swallow their prey whole, without chewing it. After that they are not able to move, and they sleep through the six months that they need for digestion. I pondered deeply, then, over the adventures of the jungle. And after some work with a colored pencil I succeeded in making my first drawing. My Drawing Number One. The Little Prince Chapter I\nOnce when I was six years old I saw a magnificent picture in a book, called True Stories from Nature, about the primeval forest. It was a picture of a boa constrictor in the act of swallowing an animal. Here is a copy of the drawing. Boa In the book it said: Boa constric";
+	unsigned char input_packet[] = "01The Autobiography of Benjamin Franklin edited by Charles Eliot presented\nby Project Gutenberg\n\nThis eBook is for the use of anyone anywhere at no cost and with almost\nno restrictions whatsoever. You may copy it, give it away or re-use it\nunder the terms of the Project Gutenberg License included with this\neBook or online at www.gutenberg.net\n\nTitle: The Autobiography of Benjamin Franklin\nEditor: Charles Eliot\nRelease Date: May 22, 2008 [EBook #148]\nLast Updated: July 2016\nLanguage: English\n\nProduced by Project Gutenberg. HTML version by Robert Homa.\n\n*** START OF THIS PROJECT GUTENBERG EBOOK THE AUTOBIOGRAPHY OF BENJAMIN\nFRANKLIN ***\n\nTitle: The Autobiography of Benjamin Franklin\n\nAuthor: Benjamin Franklin\n\nFirst Released: August 4, 1995 [Ebook: #148]\n[Last updated: August 2, 2016]\n\nLanguage: English\n\n*** START OF THIS PROJECT GUTENBERG EBOOK AUTOBIOGRAPHY OF BENJAMIN\nFRANKLIN ***\n\nTHE AUTOBIOGRAPHY OF BENJAMIN FRANKLIN\n\nThe Harvard Classics\n\nWITH INTRODUCTION AND NOTES\n\nEDITED BY\n\nCHARLES W ELLIOT LLD\n\nP F COLLIER & SON COMPANY\nNEW YORK\n1909\n\n\n\n\nNavigation\n\n    Letter from Mr. Abel James.\n    Publishes the first number of \"Poor Richard's Almanac.\n    Proposes a Plan of Union for the colonies\n    Chief events in Franklin's life.\n\nINTRODUCTORY NOTE\n\nBenjamin Franklin was born in Milk Street, Boston, on January 6, 1706.\nHis father, Josiah Franklin, was a tallow chandler who married twice,\nand of his seventeen children Benjamin was the youngest son. His\nschooling ended at ten, and at twelve he was bound apprentice to his\nbrother James, a printer, who published the \"New England Courant.\" To\nthis journal he became a contributor, and later was for a time its\nnominal editor. But the brothers quarreled, and Benjamin ran away, going\nfirst to New York, and thence to Philadelphia, where he arrived in\nOctober, 1723. He soon obtained work as a printer, but after a few\nmonths he was induced by Governor Keith to go to London, where, finding\nKeith's promises empty, he again worked as a compositor till he was\nbrought back to Philadelphia by a merchant named Denman, who gave him a\nposition in his business. On Denman's death he returned to his former\ntrade, and shortly set up a printing house of his own from which he\npublished \"The Pennsylvania Gazette,\" to which he contributed many\nessays, and which he made a medium for agitating a variety of local\nreforms. In 1732 he began to issue his famous \"Poor Richard's Almanac\"\nfor the enrichment of which he borrowed or composed those pithy\nutterances of worldly wisdom which are the basis of a large part of his\npopular reputation. In 1758, the year in which he ceased writing for the\nAlmanac, he printed in it \"Father Abraham's Sermon,\" now regarded as the\nmost famous piece of literature produced in Colonial America.";
     // uint8_t* input_packet = &_input_packet[0];
     // uint32_t chunk_bndry[] = {2, 10, 471, 621};     // WARNING: Hls::stream 'bit_pack_out_flag' is read while empty, which may result in RTL simulation hanging.
-    uint32_t chunk_bndry[] = {50, 200, 471, 626};
-    // uint32_t chunk_bndry[] = {266,484,1481,1588,1636,1794,1821,2084,2479,2786};
+    // uint32_t chunk_bndry[] = {50, 200, 471, 624};
+    uint32_t chunk_bndry[] = {266,484,1481,1588,1636,1794,1821,2084,2479,2786};
     // uint32_t *chunk_bndry = (uint32_t*)calloc(4, sizeof(uint32_t));
     // chunk_bndry[0] = 50;
     // chunk_bndry[1] = 200;
@@ -179,10 +180,11 @@ int main()
     // uint32_t chunk_bndry[] = {152, 300, 471, 621};
   
     uint32_t num_chunks = 4;
-    uint8_t is_chunk_unique[] = {1, 1, 0, 1};
-    // uint8_t is_chunk_unique[] = {1, 1, 0, 1, 1, 1, 0, 1, 0, 1};
+    // uint8_t is_chunk_unique[] = {1, 1, 0, 1};
+    uint8_t is_chunk_unique[] = {1, 1, 0, 1, 1, 1, 0, 1, 0, 1};
     // uint8_t *is_chunk_unique=&_is_chunk_unique[0];
-    uint32_t dup_chunk_head[] = {13, 22, 4, 6};//, 56, 87, 234, 6, 55, 99};
+    // uint32_t dup_chunk_head[] = {13, 22, 4, 6};
+    uint32_t dup_chunk_head[] = {13, 22, 4, 6, 56, 87, 234, 6, 55, 99};
     // uint32_t* dup_chunk_head = &_dup_chunk_head[0];
     
     // Output file pointer
@@ -193,7 +195,7 @@ int main()
     uint32_t* output_size_SW = (uint32_t*)calloc(1, sizeof(uint32_t));
 
     lzw_kernel(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_HW, output_size_HW, dup_chunk_head);
-    lzw_SW(input_packet, chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
+    lzw_SW(&input_packet[2], chunk_bndry, num_chunks, is_chunk_unique, output_file_SW, output_size_SW, dup_chunk_head);
     
 
     bool data_Equal = compare_outputs(output_file_SW, output_file_HW, (*output_size_HW));

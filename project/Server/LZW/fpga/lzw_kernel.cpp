@@ -66,6 +66,7 @@ void load(unsigned char* input_packet,
 		  hls::stream<uint8_t> &uniques_1,
 		  hls::stream<uint32_t> &head_1)
 {
+	std::cout << "New hardware\n";
 	uint32_t last_boundary = 0;
 
 	uint32_t l_chunk_boundary = 0;
@@ -107,8 +108,8 @@ void load(unsigned char* input_packet,
 			for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
 			{
 				// std::cout<<"reading data in load: ";
-				uint8_t l_data = input_packet[j];
-				// std::cout << l_data << "\n";
+				uint8_t l_data = input_packet[j + 2];
+				// std::cout << l_data ;
 				// std::cout<<"writing data in load\n";
 				input.write(l_data);
 				
@@ -126,7 +127,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				uint32_t num_chunks,
 				hls::stream<uint32_t> &lzw_encode_out,
 				
-				hls::stream<uint32_t> &boundaries_2,
+				// hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 				hls::stream<uint8_t> &lzw_encode_out_flag)
@@ -169,7 +170,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 		unique = uniques_1.read();
 		l_head = head_1.read();
 
-		boundaries_2.write(l_chunk_boundary);
+		// boundaries_2.write(l_chunk_boundary);
 		uniques_2.write(unique);
 		head_2.write(l_head);
 
@@ -243,11 +244,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 
 				hls::stream<uint8_t> &lzw_encode_out_flag,
 			
-				hls::stream<uint32_t> &boundaries_2,
+				// hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 			
-				hls::stream<uint32_t> &boundaries_3,
+				// hls::stream<uint32_t> &boundaries_3,
 				hls::stream<uint8_t> &uniques_3,
 				hls::stream<uint32_t> &head_3,
 				
@@ -255,7 +256,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 				
 				hls::stream<uint8_t> &bit_pack_out_flag)
 {
-	uint32_t l_chunk_boundary = 0;
+	// uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -263,11 +264,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 	{
 		// uint32_t bit_pack_counter = 0;
 		
-		l_chunk_boundary = boundaries_2.read();
+		// l_chunk_boundary = boundaries_2.read();
 		unique = uniques_2.read();
 		l_head = head_2.read();
 
-		boundaries_3.write(l_chunk_boundary);
+		// boundaries_3.write(l_chunk_boundary);
 		uniques_3.write(unique);
 		head_3.write(l_head);
 
@@ -331,7 +332,7 @@ void store(hls::stream<unsigned char> &output,
 		   uint8_t* output_file,
 		   uint32_t* output_size,
 		   
-			hls::stream<uint32_t> &boundaries_3,
+			// hls::stream<uint32_t> &boundaries_3,
 			hls::stream<uint8_t> &uniques_3,
 			hls::stream<uint32_t> &head_3,
 
@@ -339,7 +340,7 @@ void store(hls::stream<unsigned char> &output,
 {
 	uint32_t offset = 0;
 
-	uint32_t l_chunk_boundary = 0;
+	// uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -347,7 +348,7 @@ void store(hls::stream<unsigned char> &output,
 	{
 		// uint32_t store_counter = 0;
 
-		l_chunk_boundary = boundaries_3.read();
+		// l_chunk_boundary = boundaries_3.read();
 		unique = uniques_3.read();
 		l_head = head_3.read();
 
@@ -431,11 +432,11 @@ void lzw_kernel(unsigned char* input_packet,
 	hls::stream<uint8_t, 512> uniques_1("uniques_1");
 	hls::stream<uint32_t, 512> head_1("head_1");
 
-	hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
+	// hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
 	hls::stream<uint8_t, 512> uniques_2("uniques_2");
 	hls::stream<uint32_t, 512> head_2("head_2");
 
-	hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
+	// hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
 	hls::stream<uint8_t, 512> uniques_3("uniques_3");
 	hls::stream<uint32_t, 512> head_3("head_3");
 
@@ -466,15 +467,15 @@ void lzw_kernel(unsigned char* input_packet,
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);
-	load(&input_packet[2], local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
+	load(input_packet, local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
 
 	// lzw_encode(input, chunk_bndry, is_chunk_unique, local_num_chunks, lzw_encode_out);
-	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, boundaries_2, uniques_2, head_2, lzw_encode_out_flag);
+	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, /*boundaries_2,*/ uniques_2, head_2, lzw_encode_out_flag);
 
 	// bit_pack(lzw_encode_out, is_chunk_unique, local_num_chunks, packed_size, bit_pack_out);
-	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, boundaries_2, uniques_2, head_2, boundaries_3, uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
+	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, /*boundaries_2,*/ uniques_2, head_2, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
 
 	// store(bit_pack_out, packed_size, is_chunk_unique, local_num_chunks, dup_chunk_head, output_file, output_size);
-	store(bit_pack_out, local_num_chunks, output_file, output_size, boundaries_3, uniques_3, head_3, bit_pack_out_flag);
+	store(bit_pack_out, local_num_chunks, output_file, output_size, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out_flag);
 
 }
