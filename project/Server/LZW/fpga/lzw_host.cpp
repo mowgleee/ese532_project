@@ -17,7 +17,8 @@ lzw_request::lzw_request()
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
     // output_from_fpga = (unsigned char *)calloc(BLOCKSIZE*13/8, sizeof(unsigned char));
-    ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+    // ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+    posix_memalign((void**)&ptr_output_size, 4096, sizeof(uint32_t));
     // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
