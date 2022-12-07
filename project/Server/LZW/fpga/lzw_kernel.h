@@ -23,7 +23,7 @@
 #define CODE_LENGTH 13
 
 #define HASHMAP_CAPACITY 8192
-#define BUCKET_SIZE	3
+#define BUCKET_SIZE	1
 
 typedef struct hashmap_entry {
   uint32_t key;
@@ -33,6 +33,9 @@ typedef struct hashmap_entry {
 uint64_t MurmurHash64( const unsigned char * data, int len);
 int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val);
 // void lzw_kernel(unsigned char* input, uint32_t size, /*std::vector<int>,*/ uint8_t* output_code_packed, uint32_t* output_code_size);
+uint8_t associative_put(ap_uint<72> keys[][4], uint32_t* value, uint8_t counter, uint32_t hash, uint32_t code);
+uint8_t log_2(ap_uint<72> bit_to_get);
+int32_t associative_get(ap_uint<72> keys[][4], uint32_t* value, uint32_t hash);
 
 void lzw_kernel(unsigned char* input_packet,
 				uint32_t* chunk_bndry,

@@ -12,7 +12,7 @@ void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
   return;
 }
 
-bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, uint32_t code) 
+bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, int32_t code) 
 {
 	#pragma HLS inline
 	uint32_t index = key % HASHMAP_CAPACITY;
@@ -37,7 +37,7 @@ bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, uint
 //   map->size++;
 }
 
-uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
+int32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
 {
 	#pragma HLS inline
 	uint32_t index = key % HASHMAP_CAPACITY;
@@ -50,7 +50,7 @@ uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
 	}
 	// index = (index + 1) % HASHMAP_CAPACITY;
 	// std::cout<<"collision for index: "<<index<<"\n";
-	return INT32_MAX;
+	return -1;
 }
 
 
@@ -189,19 +189,65 @@ void load(unsigned char* input_packet,
 }
 
 
-// bool associative_put(ap_uint<72> keys[][4], uint32_t* value, uint32_t counter, uint32_t code)
-// {
-// 	ap_uint<9> index[4];
+uint8_t associative_put(ap_uint<72> keys[][4], uint32_t* value, uint8_t counter, uint32_t hash, uint32_t code)
+{
+	ap_uint<72> bit_to_set = 0;
+	ap_uint<9> index[4];
+	value[counter] = code; //put code in value bram
 
-	
-// }
+	for (uint8_t i = 0; i<4; i++)
+	{
+		index[i] = (hash>>(i*9)) & 0x1FF;
+	}
 
+	bit_to_set = 1<<counter;
 
+	for (uint8_t i = 0; i<4; i++)
+	{
+		keys[index[i]][i] |= bit_to_set;
+	}
 
-// uint32_t associative_get(ap_uint<72> keys[][4], uint32_t* value, uint32_t hash)
-// {
-	
-// }
+	return ++counter;	
+}
+
+uint8_t log_2(ap_uint<72> bit_to_get)
+{
+	uint8_t addr =0;
+	while (bit_to_get >>= 1) // unroll for more speed.
+	{
+  		addr++;
+	}
+	return addr;
+}
+
+int32_t associative_get(ap_uint<72> keys[][4], uint32_t* value, uint32_t hash)
+{
+	ap_uint<9> index[4];
+
+	for (uint8_t i = 0; i<4; i++)
+	{
+		index[i] = (hash>>(i*9)) & 0x1FF;
+	}
+
+	ap_uint<72> bit_to_get = keys[index[0]][0] & key[index[1]][1];
+	for(uint8_t i = 2; i<4; i++)
+	{
+		bit_to_get &= keys[index[i]][i];
+	}
+	if(bit_to_get == 0)
+	{
+		return -1;
+	}
+
+	uint8_t value_addr = log_2(bit_to_get);
+	int32_t code = value[value_addr];
+
+	if(code == 0)
+	{
+		return -1;
+	}
+	return code;
+}
 
 
 void lzw_encode(hls::stream<unsigned char> &input,
@@ -220,7 +266,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 	// uint32_t output_code[MAX_NUM_OF_CODES];
 	// uint64_t table[MAX_NUM_OF_CODES];
 
-	uint32_t hash_val;
+	uint32_t hash_val = 0;
 	uint8_t ch = 0;
 	uint32_t code = 0;
 
@@ -245,9 +291,13 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 		if(unique)
 		{
-			// ap_uint<72> key[512][4];//10 brams 72 values
-			// // ap_uint<72> key_high[512][4];
-			// int value[72];
+			ap_uint<72> keys[512][4];//10 brams 72 values
+			// ap_uint<72> key_high[512][4];
+			int values[72];
+			uint8_t counter=0;
+
+			// for(uint32_t i=0; i<512; i++)
+
 
 			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
 			hashmap_create(hash_entries);
@@ -255,6 +305,8 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 			code = 256;
 			uint32_t length = l_chunk_boundary - last_boundary + 1;
+
+			int32_t out_code = 0;
 
 			uint8_t c;
 			uint8_t p[MAX_NUM_OF_CODES] = {0};
@@ -279,9 +331,14 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 				int32_t match = hashmap_get(hash_entries, hash_val);
 
-				if (match == INT32_MAX/*table.find(p + c) != table.end()*/) {			// Change the find function
+				if(match == -1)
+				{
+					match = associative_get(keys, values, hash_val);
+				}
+
+				if (match == -1/*table.find(p + c) != table.end()*/) {			// Change the find function
 					
-					int32_t out_code = 0;
+					
 
 					if(p_idx <= 2)
 					{
@@ -291,12 +348,21 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					}
 					else
 					{
-						out_code = hashmap_get(hash_entries, FNVHash((void*)p, p_idx - 1));
+						uint32_t hash_val_outcode = FNVHash((void*)p, p_idx - 1);
+						out_code = hashmap_get(hash_entries, hash_val_outcode);
+						if(out_code == -1)
+						{
+							out_code = associative_get(keys, values, hash_val_outcode);
+						}
 					}
 					lzw_encode_out_flag.write(1);
 					lzw_encode_out.write(out_code);
-					hashmap_put(hash_entries, hash_val, code);
-
+					bool put_pass = hashmap_put(hash_entries, hash_val, code);
+					if(!put_pass && counter<72)
+					{
+						counter = associative_put(keys, values, counter, hash_val, code);
+					}
+					
 					code++;
 					p_idx = 0;
 					p[p_idx] = c;
@@ -307,7 +373,12 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			{
 				lzw_encode_out_flag.write(1);
 				// uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx));
-				uint32_t out_code = hashmap_get(hash_entries, FNVHash((void*)p, p_idx));
+				// hash_val = FNVHash((void*)p, p_idx);
+				out_code = hashmap_get(hash_entries, hash_val);
+				if(out_code == -1)
+				{
+					out_code = associative_get(keys, values, hash_val);
+				}
 				lzw_encode_out.write(out_code);
 			}
 			// std::cout<<"Out code outside if(match<0): "<<out_code<<"\n";
