@@ -54,18 +54,6 @@ uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
 }
 
 
-// bool associative_put(ap_uint<72> key[][4], uint32_t* value, uint32_t counter, uint32_t code)
-// {
-	
-// }
-
-
-
-// uint32_t associative_get(ap_uint<72> key[][4], uint32_t* value, uint32_t hash)
-// {
-
-// }
-
 
 uint32_t djb2hash(const void *key, int len) {
   uint32_t hash = 5381;
@@ -188,7 +176,7 @@ void load(unsigned char* input_packet,
 			for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
 			{
 				// std::cout<<"reading data in load: ";
-				uint8_t l_data = input_packet[j];
+				uint8_t l_data = input_packet[j+2];
 				// std::cout << l_data << "\n";
 				// std::cout<<"writing data in load\n";
 				input.write(l_data);
@@ -199,6 +187,22 @@ void load(unsigned char* input_packet,
 		last_boundary = l_chunk_boundary + 1;
 	}
 }
+
+
+// bool associative_put(ap_uint<72> keys[][4], uint32_t* value, uint32_t counter, uint32_t code)
+// {
+// 	ap_uint<9> index[4];
+
+	
+// }
+
+
+
+// uint32_t associative_get(ap_uint<72> keys[][4], uint32_t* value, uint32_t hash)
+// {
+	
+// }
+
 
 void lzw_encode(hls::stream<unsigned char> &input,
 				hls::stream<uint32_t> &boundaries_1,
@@ -541,7 +545,7 @@ void lzw_kernel(unsigned char* input_packet,
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);
-	load(&input_packet[2], local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
+	load(input_packet, local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
 
 	// lzw_encode(input, chunk_bndry, is_chunk_unique, local_num_chunks, lzw_encode_out);
 	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, boundaries_2, uniques_2, head_2, lzw_encode_out_flag);
