@@ -26,7 +26,7 @@
 #define BUCKET_SIZE	3
 
 typedef struct hashmap_entry {
-  uint64_t key;
+  uint32_t key;
   uint32_t code;
 } hashmap_entry_t;
 
