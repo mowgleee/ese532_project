@@ -1,24 +1,74 @@
 #include "lzw_kernel.h"
 
+/* Constants for the XXH3low_mix16B() function */
+#define XXH3LOW_MIX16B_MUL 0x9E3779B97F4A7C15ull
+#define XXH3LOW_MIX16B_ROT1 19
+#define XXH3LOW_MIX16B_ROT2 27
 
+/*
+ * The XXH3low_mix16B() function is used to mix the input data for the
+ * xxh3low hash function.
+ *
+ * This implementation is based on the reference implementation found here:
+ * https://github.com/Cyan4973/xxHash/blob/master/xxh3.c
+ */
+static uint64_t XXH3low_mix16B(uint64_t val, uint64_t mul) {
+  uint64_t h32 = (val ^ mul) * XXH3LOW_MIX16B_MUL;
+  h32 ^= h32 >> XXH3LOW_MIX16B_ROT1;
+  h32 *= XXH3LOW_MIX16B_MUL;
+  h32 ^= h32 >> XXH3LOW_MIX16B_ROT2;
 
-#define HASHMAP_CAPACITY 8192
-#define BUCKET_SIZE	3
+  return h32;
+}
 
-typedef struct hashmap_entry {
-  uint64_t key;
-  uint32_t code;
-} hashmap_entry_t;
+/*
+ * The xxh3low() function is used to quickly hash a buffer of data.
+ *
+ * This implementation is based on the reference implementation found here:
+ * https://github.com/Cyan4973/xxHash/blob/master/xxh3.c
+ */
+uint64_t xxh3low(const void *data, size_t len) 
+{
+	uint64_t seed = 1;
+	const uint8_t *p = (const uint8_t *)data;
+	const uint8_t *const bEnd = p + len;
+	uint64_t acc = len * XXH3LOW_MIX16B_MUL ^ seed;
 
-// typedef struct hashmap {
-// //   size_t size;
-//   hashmap_entry_t entries[HASHMAP_CAPACITY];
-// } hashmap_t;
+	while (p + 16 <= bEnd) {
+		acc = XXH3low_mix16B(*(const uint64_t *)p, acc);
+		acc = XXH3low_mix16B(*(const uint64_t *)(p + 8), acc);
+		p += 16;
+	}
+
+	if (p + 8 <= bEnd) {
+		acc = XXH3low_mix16B(*(const uint64_t *)p, acc);
+		p += 8;
+	}
+
+	if (p + 4 <= bEnd) {
+		acc = XXH3low_mix16B(*(const uint32_t *)p, acc);
+		p += 4;
+	}
+
+	if (p + 2 <= bEnd) {
+		acc = XXH3low_mix16B(*(const uint16_t *)p, acc);
+		p += 2;
+	}
+
+	if (p + 1 <= bEnd) {
+		acc = XXH3low_mix16B(*p, acc);
+	}
+
+	return XXH3low_mix16B(acc ^ len, seed);
+}
+
 
 void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
   for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
+	// #pragma HLS unroll
 	for (uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
+		// #pragma HLS unroll
     	hash_entries[i][j].key = 0;
 	}
   }
@@ -32,9 +82,10 @@ bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint64_t key, uint
 
 	for( uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
+		// #pragma HLS unroll
 		if (hash_entries[index][j].key == 0) 
 		{
-			#pragma HLS unroll
+			// #pragma HLS unroll
 			hash_entries[index][j].key = key;
 			hash_entries[index][j].code = code;
 			// std::cout<<"putting value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
@@ -66,7 +117,17 @@ uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint64_t key)
 }
 
 
+// bool collision_store()
 
+uint32_t djb2hash(const void *key, size_t len) {
+  uint32_t hash = 5381;
+  const uint64_t * data = (const uint64_t *)key;
+
+  for (size_t i = 0; i < len; i++)
+    hash = ((hash << 5) + hash) + data[i]; /* hash * 33 + c */
+
+  return hash;
+}
 
 uint64_t MurmurHash2( const void * key, int len)
 {
@@ -213,22 +274,13 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 		if(unique)
 		{
+			// ap_uint<72> key[512][8];//10 brams 72 values
+			// // ap_uint<72> key_high[512][4];
+			// int value[72];
+
 			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
 			hashmap_create(hash_entries);
 			std::cout<<"created new hash map\n";
-
-			// for (code = 0; code <= 255; code++)
-			// {
-			// 	#pragma HLS PIPELINE II = 1
-			// 	#pragma HLS UNROLL FACTOR = 2
-			// 	ch = char(code);
-			// 	// ch += char(i);
-			// 	hash_val = MurmurHash2((void*)&ch, 1/*Default single character length*/);
-			// 	// table[code] = hash_val;
-			// 	hashmap_put(hash_entries, hash_val, code);
-			// }
-			// std::cout<<"placed first 255 codes\n";
-
 
 			code = 256;
 			uint32_t length = l_chunk_boundary - last_boundary + 1;
@@ -251,17 +303,15 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				}
 
 				// Search algorithm for the array
-				hash_val = MurmurHash2((void*)p, p_idx);
+				hash_val = xxh3low((void*)p, p_idx);
 				already_sent=false;
-				// int32_t match = search(table, code, hash_val);
+
 				int32_t match = hashmap_get(hash_entries, hash_val);
-				// std::cout<<"match: "<<match<<"\n";
 
 				if (match == INT32_MAX/*table.find(p + c) != table.end()*/) {			// Change the find function
 					
-					// uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx - 1));
 					int32_t out_code = 0;
-					// std::cout<<"p_idx: "<<p_idx<<"\n";
+
 					if(p_idx <= 2)
 					{
 						// std::cout<<"sending "<<p[0]<<" for p_idx: "<<p_idx<<"\n";
@@ -270,21 +320,12 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					}
 					else
 					{
-						out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx - 1));
+						out_code = hashmap_get(hash_entries, xxh3low((void*)p, p_idx - 1));
 					}
 					lzw_encode_out_flag.write(1);
 					lzw_encode_out.write(out_code);
-					// uint32_t out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx - 1));
-					// // std::cout<<"Out code: "<<out_code<<"\n";
-					// lzw_encode_out.write(out_code);
 					hashmap_put(hash_entries, hash_val, code);
-					// std::cout<<"Out code: "<<out_code<<"\n";
-					// op_idx++;
 
-					// table[p + c] = code;
-					// table[code] = hash_val;
-
-					
 					code++;
 					p_idx = 0;
 					p[p_idx] = c;
@@ -295,19 +336,12 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			{
 				lzw_encode_out_flag.write(1);
 				// uint32_t out_code = search(table, code, MurmurHash2((void*)p, p_idx));
-				uint32_t out_code = hashmap_get(hash_entries, MurmurHash2((void*)p, p_idx));
+				uint32_t out_code = hashmap_get(hash_entries, xxh3low((void*)p, p_idx));
 				lzw_encode_out.write(out_code);
 			}
 			// std::cout<<"Out code outside if(match<0): "<<out_code<<"\n";
 			lzw_encode_out_flag.write(0);
 		}
-		// else
-		// {
-		// 	for (uint32_t i = 0; i < (l_chunk_boundary - last_boundary + 1); i++)
-		// 	{
-		// 		input.read();
-		// 	}
-		// }
 		last_boundary = l_chunk_boundary + 1;
 	}
 }

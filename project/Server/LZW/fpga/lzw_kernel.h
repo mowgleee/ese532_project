@@ -9,8 +9,9 @@
 #include <math.h>
 #include "hls_stream.h"
 
+
 // #include <bits/stdc++.h>
-// #include<ap_int.h>
+#include<ap_int.h>
 // #include<hls_stream.h>
 
 // Creating ap_int datatype for 13 bit code
@@ -20,6 +21,14 @@
 #define MAX_NUM_OF_CODES 8192 // Dictionary size acc. to 13 bit code in LZW
 
 #define CODE_LENGTH 13
+
+#define HASHMAP_CAPACITY 8192
+#define BUCKET_SIZE	3
+
+typedef struct hashmap_entry {
+  uint64_t key;
+  uint32_t code;
+} hashmap_entry_t;
 
 uint64_t MurmurHash64( const unsigned char * data, int len);
 int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val);
