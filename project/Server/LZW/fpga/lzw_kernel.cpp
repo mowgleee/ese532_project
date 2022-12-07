@@ -54,7 +54,18 @@ uint32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
 }
 
 
-// bool collision_store()
+// bool associative_put(ap_uint<72> key[][4], uint32_t* value, uint32_t counter, uint32_t code)
+// {
+	
+// }
+
+
+
+// uint32_t associative_get(ap_uint<72> key[][4], uint32_t* value, uint32_t hash)
+// {
+
+// }
+
 
 uint32_t djb2hash(const void *key, int len) {
   uint32_t hash = 5381;
@@ -126,6 +137,10 @@ uint64_t MurmurHash2( const void * key, int len)
 
   return h;
 } 
+
+
+
+
 
 int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
 {
@@ -226,7 +241,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 		if(unique)
 		{
-			// ap_uint<72> key[512][8];//10 brams 72 values
+			// ap_uint<72> key[512][4];//10 brams 72 values
 			// // ap_uint<72> key_high[512][4];
 			// int value[72];
 
