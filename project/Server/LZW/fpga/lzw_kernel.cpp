@@ -32,7 +32,7 @@ bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, uint
 	// index = (index + 1) % HASHMAP_CAPACITY;
 	// hash_entries[index].key = key;
 	// hash_entries[index].code = code;
-	std::cout<<"couldn't put value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
+	// std::cout<<"couldn't put value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
 	return false;
 //   map->size++;
 }
@@ -221,7 +221,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 		boundaries_2.write(l_chunk_boundary);
 		uniques_2.write(unique);
 		head_2.write(l_head);
-		std::cout<<"chunk: "<<j<<"\n";
+		// std::cout<<"chunk: "<<j<<"\n";
 		bool already_sent = false;
 
 		if(unique)
@@ -232,7 +232,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
 			hashmap_create(hash_entries);
-			std::cout<<"created new hash map\n";
+			// std::cout<<"created new hash map\n";
 
 			code = 256;
 			uint32_t length = l_chunk_boundary - last_boundary + 1;
