@@ -1,5 +1,8 @@
 #include "lzw_kernel.h"
 
+typedef ap_uint<72> associative_mem;
+typedef ap_uint<9> associative_key;
+
 void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
   for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
 	// #pragma HLS unroll
@@ -124,11 +127,7 @@ uint64_t MurmurHash2( const void * key, int len)
   h ^= h >> r;
 
   return h;
-} 
-
-
-
-
+}
 
 int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
 {
@@ -138,6 +137,57 @@ int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
 			return i;
 	}
 	return -1;
+}
+
+uint8_t log_2(associative_mem bit_to_get)
+{
+	uint8_t addr = 0;
+	while ((bit_to_get >> 1) != 1) {	// unroll for more speed.
+  		addr++;
+	}
+	return addr;
+}
+
+uint8_t associative_insert(associative_mem associative_map[4][512], int32_t* associative_value_list, uint8_t counter, uint32_t hash, uint32_t code)
+{
+	associative_mem bit_to_set = 0;
+	associative_key index[4];
+	associative_value_list[counter] = code; //put code in value bram
+
+	for (uint8_t i = 0; i<4; i++) {
+		index[i] = (hash>>(i*9)) & 0x1FF;
+	}
+	bit_to_set = 1 << counter;
+
+	for (uint8_t i = 0; i<4; i++) {
+		associative_map[i][index[i]] |= bit_to_set;
+	}
+
+	return ++counter;	
+}
+
+int32_t associative_lookup(associative_mem associative_map[4][512], int32_t* associative_value_list, uint32_t hash)
+{
+	associative_key key[4];
+
+	for (uint8_t i = 0; i<4; i++) {
+		key[i] = (hash >> (i * 9)) & 0x1FF;	// Create 9-bit keys from the 32-bit hash
+	}
+
+	associative_mem bit_to_get = associative_map[0][key[0]] & associative_map[1][key[1]];
+	bit_to_get &= associative_map[2][key[2]];
+	bit_to_get &= associative_map[3][key[3]];
+
+	if(bit_to_get == 0)	{
+		return -1;
+	}
+
+	int32_t code = associative_value_list[log_2(bit_to_get)];
+	if(code == 0) {
+		return -1;
+	}
+
+	return code;
 }
 
 void load(unsigned char* input_packet,
@@ -188,68 +238,6 @@ void load(unsigned char* input_packet,
 	}
 }
 
-
-uint8_t associative_put(ap_uint<72> keys[][4], uint32_t* value, uint8_t counter, uint32_t hash, uint32_t code)
-{
-	ap_uint<72> bit_to_set = 0;
-	ap_uint<9> index[4];
-	value[counter] = code; //put code in value bram
-
-	for (uint8_t i = 0; i<4; i++)
-	{
-		index[i] = (hash>>(i*9)) & 0x1FF;
-	}
-
-	bit_to_set = 1<<counter;
-
-	for (uint8_t i = 0; i<4; i++)
-	{
-		keys[index[i]][i] |= bit_to_set;
-	}
-
-	return ++counter;	
-}
-
-uint8_t log_2(ap_uint<72> bit_to_get)
-{
-	uint8_t addr =0;
-	while (bit_to_get >>= 1) // unroll for more speed.
-	{
-  		addr++;
-	}
-	return addr;
-}
-
-int32_t associative_get(ap_uint<72> keys[][4], uint32_t* value, uint32_t hash)
-{
-	ap_uint<9> index[4];
-
-	for (uint8_t i = 0; i<4; i++)
-	{
-		index[i] = (hash>>(i*9)) & 0x1FF;
-	}
-
-	ap_uint<72> bit_to_get = keys[index[0]][0] & key[index[1]][1];
-	for(uint8_t i = 2; i<4; i++)
-	{
-		bit_to_get &= keys[index[i]][i];
-	}
-	if(bit_to_get == 0)
-	{
-		return -1;
-	}
-
-	uint8_t value_addr = log_2(bit_to_get);
-	int32_t code = value[value_addr];
-
-	if(code == 0)
-	{
-		return -1;
-	}
-	return code;
-}
-
-
 void lzw_encode(hls::stream<unsigned char> &input,
 				hls::stream<uint32_t> &boundaries_1,
 				hls::stream<uint8_t> &uniques_1,
@@ -257,7 +245,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				uint32_t num_chunks,
 				hls::stream<uint32_t> &lzw_encode_out,
 				
-				hls::stream<uint32_t> &boundaries_2,
+				// hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 				hls::stream<uint8_t> &lzw_encode_out_flag)
@@ -283,7 +271,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 		unique = uniques_1.read();
 		l_head = head_1.read();
 
-		boundaries_2.write(l_chunk_boundary);
+		// boundaries_2.write(l_chunk_boundary);
 		uniques_2.write(unique);
 		head_2.write(l_head);
 		// std::cout<<"chunk: "<<j<<"\n";
@@ -291,10 +279,10 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 		if(unique)
 		{
-			ap_uint<72> keys[512][4];//10 brams 72 values
-			// ap_uint<72> key_high[512][4];
+			associative_mem associative_map[4][512];//10 brams 72 values
+			// associative_mem key_high[512][4];
 			int values[72];
-			uint8_t counter=0;
+			uint8_t counter = 0;
 
 			// for(uint32_t i=0; i<512; i++)
 
@@ -333,7 +321,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 				if(match == -1)
 				{
-					match = associative_get(keys, values, hash_val);
+					match = associative_lookup(associative_map, values, hash_val);
 				}
 
 				if (match == -1/*table.find(p + c) != table.end()*/) {			// Change the find function
@@ -352,7 +340,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 						out_code = hashmap_get(hash_entries, hash_val_outcode);
 						if(out_code == -1)
 						{
-							out_code = associative_get(keys, values, hash_val_outcode);
+							out_code = associative_lookup(associative_map, values, hash_val_outcode);
 						}
 					}
 					lzw_encode_out_flag.write(1);
@@ -360,7 +348,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					bool put_pass = hashmap_put(hash_entries, hash_val, code);
 					if(!put_pass && counter<72)
 					{
-						counter = associative_put(keys, values, counter, hash_val, code);
+						counter = associative_insert(associative_map, values, counter, hash_val, code);
 					}
 					
 					code++;
@@ -377,7 +365,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				out_code = hashmap_get(hash_entries, hash_val);
 				if(out_code == -1)
 				{
-					out_code = associative_get(keys, values, hash_val);
+					out_code = associative_lookup(associative_map, values, hash_val);
 				}
 				lzw_encode_out.write(out_code);
 			}
@@ -393,11 +381,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 
 				hls::stream<uint8_t> &lzw_encode_out_flag,
 			
-				hls::stream<uint32_t> &boundaries_2,
+				// hls::stream<uint32_t> &boundaries_2,
 				hls::stream<uint8_t> &uniques_2,
 				hls::stream<uint32_t> &head_2,
 			
-				hls::stream<uint32_t> &boundaries_3,
+				// hls::stream<uint32_t> &boundaries_3,
 				hls::stream<uint8_t> &uniques_3,
 				hls::stream<uint32_t> &head_3,
 				
@@ -405,7 +393,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 				
 				hls::stream<uint8_t> &bit_pack_out_flag)
 {
-	uint32_t l_chunk_boundary = 0;
+	// uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -413,11 +401,11 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 	{
 		// uint32_t bit_pack_counter = 0;
 		
-		l_chunk_boundary = boundaries_2.read();
+		// l_chunk_boundary = boundaries_2.read();
 		unique = uniques_2.read();
 		l_head = head_2.read();
 
-		boundaries_3.write(l_chunk_boundary);
+		// boundaries_3.write(l_chunk_boundary);
 		uniques_3.write(unique);
 		head_3.write(l_head);
 
@@ -481,7 +469,7 @@ void store(hls::stream<unsigned char> &output,
 		   uint8_t* output_file,
 		   uint32_t* output_size,
 		   
-			hls::stream<uint32_t> &boundaries_3,
+			// hls::stream<uint32_t> &boundaries_3,
 			hls::stream<uint8_t> &uniques_3,
 			hls::stream<uint32_t> &head_3,
 
@@ -489,7 +477,7 @@ void store(hls::stream<unsigned char> &output,
 {
 	uint32_t offset = 0;
 
-	uint32_t l_chunk_boundary = 0;
+	// uint32_t l_chunk_boundary = 0;
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
@@ -497,7 +485,7 @@ void store(hls::stream<unsigned char> &output,
 	{
 		// uint32_t store_counter = 0;
 
-		l_chunk_boundary = boundaries_3.read();
+		// l_chunk_boundary = boundaries_3.read();
 		unique = uniques_3.read();
 		l_head = head_3.read();
 
@@ -566,13 +554,6 @@ void lzw_kernel(unsigned char* input_packet,
 
 	uint32_t local_num_chunks = num_chunks;
 
-	// for(uint32_t i = 0; i < local_num_chunks; i++)
-	// {
-	// 	std::cout << "Chunk boundary: " << chunk_bndry[i] << "\n";
-	// 	std::cout<<"Dup chunk head: " << dup_chunk_head[i] <<"\n";
-	// }
-	// std::cout<<"\n";
-
 	#pragma HLS DATAFLOW
 
 	hls::stream<unsigned char, 8192> input("input_to_store");
@@ -581,11 +562,11 @@ void lzw_kernel(unsigned char* input_packet,
 	hls::stream<uint8_t, 512> uniques_1("uniques_1");
 	hls::stream<uint32_t, 512> head_1("head_1");
 
-	hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
+	// hls::stream<uint32_t, 512> boundaries_2("boundaries_2");
 	hls::stream<uint8_t, 512> uniques_2("uniques_2");
 	hls::stream<uint32_t, 512> head_2("head_2");
 
-	hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
+	// hls::stream<uint32_t, 512> boundaries_3("boundaries_3");
 	hls::stream<uint8_t, 512> uniques_3("uniques_3");
 	hls::stream<uint32_t, 512> head_3("head_3");
 
@@ -619,12 +600,12 @@ void lzw_kernel(unsigned char* input_packet,
 	load(input_packet, local_num_chunks, chunk_bndry, is_chunk_unique, dup_chunk_head, input, boundaries_1, uniques_1, head_1);
 
 	// lzw_encode(input, chunk_bndry, is_chunk_unique, local_num_chunks, lzw_encode_out);
-	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, boundaries_2, uniques_2, head_2, lzw_encode_out_flag);
+	lzw_encode(input, boundaries_1, uniques_1, head_1, local_num_chunks, lzw_encode_out, /*boundaries_2,*/ uniques_2, head_2, lzw_encode_out_flag);
 
 	// bit_pack(lzw_encode_out, is_chunk_unique, local_num_chunks, packed_size, bit_pack_out);
-	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, boundaries_2, uniques_2, head_2, boundaries_3, uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
+	bit_pack(lzw_encode_out, local_num_chunks, lzw_encode_out_flag, /*boundaries_2,*/ uniques_2, head_2, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out, bit_pack_out_flag);
 
 	// store(bit_pack_out, packed_size, is_chunk_unique, local_num_chunks, dup_chunk_head, output_file, output_size);
-	store(bit_pack_out, local_num_chunks, output_file, output_size, boundaries_3, uniques_3, head_3, bit_pack_out_flag);
+	store(bit_pack_out, local_num_chunks, output_file, output_size, /*boundaries_3,*/ uniques_3, head_3, bit_pack_out_flag);
 
 }

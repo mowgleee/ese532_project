@@ -13,7 +13,7 @@ lzw_request::lzw_request()
     fileBuf = read_binary_file(binaryFile, fileBufSize);
     bins = cl::Program::Binaries{{fileBuf, fileBufSize}};
     OCL_CHECK(err, program = cl::Program(context, devices, bins, NULL, &err));
-    OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
+    OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err));
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
     input_pkt_bytes = (BLOCKSIZE + 2) * sizeof(unsigned char);    // +2 for packet header
@@ -146,7 +146,7 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
             is_unique[i] = pptr->curr_chunk[i].is_unique;
         }
 
-        memcpy(kernel_cl_obj.input_to_fpga, buff, packet_size+1);
+        memcpy(kernel_cl_obj.input_to_fpga, buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
 
         // kernel_cl_obj.init(packet_size, num_chunks, &buff[0], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
 
