@@ -13,11 +13,11 @@ lzw_request::lzw_request()
     fileBuf = read_binary_file(binaryFile, fileBufSize);
     bins = cl::Program::Binaries{{fileBuf, fileBufSize}};
     OCL_CHECK(err, program = cl::Program(context, devices, bins, NULL, &err));
-    OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err));
+    OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE/* | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE*/, &err));
     OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
 
     input_pkt_bytes = (BLOCKSIZE + 2) * sizeof(unsigned char);    // +2 for packet header
-    output_pkt_bytes = (NUM_ELEMENTS * 13) * sizeof(unsigned char);
+    output_pkt_bytes = (NUM_ELEMENTS) * sizeof(unsigned char);
     chunk_boundaries_bytes = MAX_NUM_CHUNKS * sizeof(uint32_t);
     is_unique_bytes = MAX_NUM_CHUNKS * sizeof(uint8_t);
     dup_chunk_head_bytes = MAX_NUM_CHUNKS * sizeof(uint32_t);
