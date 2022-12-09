@@ -28,6 +28,10 @@ lzw_request::lzw_request()
     // ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
     posix_memalign((void**)&ptr_output_size, 4096, sizeof(uint32_t));
 
+    posix_memalign((void**)&chunk_boundaries, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+    posix_memalign((void**)&is_unique, 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
+    posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+
     // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
@@ -40,12 +44,12 @@ lzw_request::~lzw_request()
     free(input_to_fpga);
     free(output_from_fpga);
     free(ptr_output_size);
-    // free(chunk_boundaries);
-    // free(dup_chunk_head);
-    // free(is_unique);
+    free(chunk_boundaries);
+    free(dup_chunk_head);
+    free(is_unique);
 }
 
-void lzw_request::init(uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique)//, uint32_t* ptr_output_size)
+void lzw_request::init()//, uint32_t* ptr_output_size)
 {
     makelog(VERB_DEBUG, "Entered LZW initialization function.\n");
 
@@ -106,16 +110,16 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
     // uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
     // uint32_t* dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
 
-    uint32_t* chunk_boundaries;
-    uint8_t* is_unique;
-    uint32_t* dup_chunk_head;
+    // uint32_t* chunk_boundaries;
+    // uint8_t* is_unique;
+    // uint32_t* dup_chunk_head;
 
-    posix_memalign((void**)&chunk_boundaries, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
-    posix_memalign((void**)&is_unique, 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
-    posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+    // posix_memalign((void**)&chunk_boundaries, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+    // posix_memalign((void**)&is_unique, 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
+    // posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
     
     kernel_init_timer.start();
-    kernel_cl_obj->init(chunk_boundaries, dup_chunk_head, is_unique);
+    kernel_cl_obj->init();
     kernel_init_timer.stop();
 
     while(1)
@@ -141,9 +145,9 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
 
         for(uint32_t i = 0; i < num_chunks; i++)
         {
-            chunk_boundaries[i] = pptr->curr_chunk[i].upper_bound;
-            dup_chunk_head[i] = pptr->curr_chunk[i].header;
-            is_unique[i] = pptr->curr_chunk[i].is_unique;
+            kernel_cl_obj->chunk_boundaries[i] = pptr->curr_chunk[i].upper_bound;
+            kernel_cl_obj->dup_chunk_head[i] = pptr->curr_chunk[i].header;
+            kernel_cl_obj->is_unique[i] = pptr->curr_chunk[i].is_unique;
         }
 
         memcpy(kernel_cl_obj->input_to_fpga, buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
@@ -183,9 +187,9 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         if(count == total_packets)
         {
             std::cout<<"LZW count= "<<count<<" total_packets= "<<total_packets<<"\n";
-            free(chunk_boundaries);
-            free(is_unique);
-            free(dup_chunk_head);
+            // free(chunk_boundaries);
+            // free(is_unique);
+            // free(dup_chunk_head);
             return;
         }
         count++;
