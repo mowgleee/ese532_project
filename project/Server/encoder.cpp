@@ -155,10 +155,10 @@ int main(int argc, char* argv[]) {
 	length = buffer[0] | (buffer[1] << 8);
 	length &= ~DONE_BIT_H;
 	total_input_size += length;
-	output_timer.start();
-	lzw_timer.start();
-	// lzw_request kernel_cl_obj;
-	lzw_timer.stop();
+	// output_timer.start();
+	// lzw_timer.start();
+	// // lzw_request kernel_cl_obj;
+	// lzw_timer.stop();
 	
 
 	makelog(VERB_DEBUG,"Initialize Pointer to Packet \n");
@@ -189,6 +189,8 @@ int main(int argc, char* argv[]) {
 	packarray[count]->size=length;
 	makelog(VERB_DEBUG,"Packet array created and packet assigned\n");
 	count++;
+
+	lzw_request kernel_cl_obj;
 
 
 	///////////////////////////////////creating threads///////////////////////////////////
@@ -222,7 +224,7 @@ int main(int argc, char* argv[]) {
 	// lzw_encoding(&buffer[0], pptr);
 	// lzw_host(&buffer[0], pptr, kernel_cl_obj);
 
-	ths.push_back(std::thread(&lzw_host, /*&kernel_cl_obj,*/ &sems, packarray));
+	ths.push_back(std::thread(&lzw_host, &kernel_cl_obj, &sems, packarray));
 	pin_thread_to_cpu(ths[3], 3);
 	//lzw_timer.stop();
 	makelog(VERB_DEBUG,"LZW thread activated.\n");
@@ -232,6 +234,9 @@ int main(int argc, char* argv[]) {
 	sem_post(&(sems.sem_cdc));
 
 	writer++;
+
+	output_timer.start();
+	
 
 	while (!done) {
 		// reset ring buffer

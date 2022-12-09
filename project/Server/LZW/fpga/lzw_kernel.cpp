@@ -12,7 +12,8 @@ void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
     	hash_entries[i][j].key = 0;
 	}
   }
-  return;
+	memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
+  	return;
 }
 
 bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, int32_t code) 
@@ -142,13 +143,14 @@ int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
 uint8_t log_2(associative_mem bit_to_get)
 {
 	uint8_t addr = 0;
-	while ((bit_to_get >> 1) != 1) {	// unroll for more speed.
+	while ((bit_to_get >> 1)) {	// unroll for more speed.
   		addr++;
+		bit_to_get = bit_to_get>>1;
 	}
 	return addr;
 }
 
-uint8_t associative_insert(associative_mem associative_map[4][512], int32_t* associative_value_list, uint8_t counter, uint32_t hash, uint32_t code)
+uint8_t associative_insert(associative_mem associative_map[][512], int32_t* associative_value_list, uint8_t counter, uint32_t hash, uint32_t code)
 {
 	associative_mem bit_to_set = 0;
 	associative_key index[4];
@@ -168,15 +170,16 @@ uint8_t associative_insert(associative_mem associative_map[4][512], int32_t* ass
 
 int32_t associative_lookup(associative_mem associative_map[4][512], int32_t* associative_value_list, uint32_t hash)
 {
-	associative_key key[4];
+	associative_key index[4];
+	// std::cout<<"trying to lookup hash: "<<hash<<"\n";
 
 	for (uint8_t i = 0; i<4; i++) {
-		key[i] = (hash >> (i * 9)) & 0x1FF;	// Create 9-bit keys from the 32-bit hash
+		index[i] = (hash >> (i * 9)) & 0x1FF;	// Create 9-bit keys from the 32-bit hash
 	}
 
-	associative_mem bit_to_get = associative_map[0][key[0]] & associative_map[1][key[1]];
-	bit_to_get &= associative_map[2][key[2]];
-	bit_to_get &= associative_map[3][key[3]];
+	associative_mem bit_to_get = associative_map[0][index[0]] & associative_map[1][index[1]];
+	bit_to_get &= associative_map[2][index[2]];
+	bit_to_get &= associative_map[3][index[3]];
 
 	if(bit_to_get == 0)	{
 		return -1;
@@ -283,12 +286,30 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			// associative_mem key_high[512][4];
 			int values[72];
 			uint8_t counter = 0;
+			int32_t match = 0;
+			// uint32_t ins_counter = 0;
 
 			// for(uint32_t i=0; i<512; i++)
 
 
 			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
-			hashmap_create(hash_entries);
+			// hashmap_create(hash_entries);
+			memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
+			memset(associative_map, 0, sizeof(associative_mem)*4*512);
+
+
+			// std::cout<<"trying to insert in assoc\n";
+
+			// counter = associative_insert(associative_map, values, counter, 370, 500);
+			// // std::cout<< "counter returned from ass: "<<counter<<"\n";
+			// printf("new counter from insert: %d", counter);
+
+			// // std::cout<<"value from bram "<<values[counter-1]<<"\n";
+			// printf("value from bram: %d \n", values[counter-1]);
+			// match = associative_lookup(associative_map, values, 370);
+			// std::cout<<"From assoc lookup: match at: "<<match<<" counter: "<<counter<<"\n";
+
+
 			// std::cout<<"created new hash map\n";
 
 			code = 256;
@@ -317,7 +338,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				hash_val = FNVHash((void*)p, p_idx);
 				already_sent=false;
 
-				int32_t match = hashmap_get(hash_entries, hash_val);
+				match = hashmap_get(hash_entries, hash_val);
 
 				if(match == -1)
 				{
@@ -348,7 +369,13 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					bool put_pass = hashmap_put(hash_entries, hash_val, code);
 					if(!put_pass && counter<72)
 					{
+						if(counter==0)
+						{
+							memset(associative_map, 0, sizeof(associative_mem)*4*512);
+						}
 						counter = associative_insert(associative_map, values, counter, hash_val, code);
+						// ins_counter++;
+						// printf("Insert in assoc counter: %d\n", ins_counter);
 					}
 					
 					code++;

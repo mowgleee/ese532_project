@@ -69,7 +69,7 @@ class lzw_request
     // uint32_t* dup_chunk_head;
 };
 
-void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems,packet** packarray);
+void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems,packet** packarray);
 
 // OCL_CHECK doesn't work if call has templatized function call
 #define OCL_CHECK(error, call)                                                 \

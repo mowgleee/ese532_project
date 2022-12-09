@@ -23,7 +23,7 @@
 #define CODE_LENGTH 13
 
 #define HASHMAP_CAPACITY 8192
-#define BUCKET_SIZE	1
+#define BUCKET_SIZE	3
 
 typedef struct hashmap_entry {
   uint32_t key;

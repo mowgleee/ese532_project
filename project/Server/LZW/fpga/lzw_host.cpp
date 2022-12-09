@@ -98,9 +98,9 @@ void lzw_request::run()
     q.finish();
 }
 
-void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarray)
+void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
 {
-	lzw_request kernel_cl_obj;
+	// lzw_request kernel_cl_obj;
 
     // uint32_t* chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
@@ -115,7 +115,7 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
     posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
     
     kernel_init_timer.start();
-    kernel_cl_obj.init(chunk_boundaries, dup_chunk_head, is_unique);
+    kernel_cl_obj->init(chunk_boundaries, dup_chunk_head, is_unique);
     kernel_init_timer.stop();
 
     while(1)
@@ -146,13 +146,13 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
             is_unique[i] = pptr->curr_chunk[i].is_unique;
         }
 
-        memcpy(kernel_cl_obj.input_to_fpga, buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+        memcpy(kernel_cl_obj->input_to_fpga, buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
 
         // kernel_cl_obj.init(packet_size, num_chunks, &buff[0], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
 
-        kernel_cl_obj.set_args(num_chunks);
+        kernel_cl_obj->set_args(num_chunks);
 
-        kernel_cl_obj.run();
+        kernel_cl_obj->run();
 
         // ------------------------------------------------------------------------------------
         // Step 4: Release Allocated Resources
@@ -173,8 +173,8 @@ void lzw_host(/*lzw_request *kernel_cl_obj,*/ semaphores* sems, packet** packarr
         // offset += sizeof(uint32_t);
 
         // Writing compressed chunk reveived from fpga to global file pointer
-        memcpy(&file[offset], kernel_cl_obj.output_from_fpga, *(kernel_cl_obj.ptr_output_size));
-        offset+= *(kernel_cl_obj.ptr_output_size);
+        memcpy(&file[offset], kernel_cl_obj->output_from_fpga, *(kernel_cl_obj->ptr_output_size));
+        offset+= *(kernel_cl_obj->ptr_output_size);
 
         std::cout<<"\nLZW PACKET DONE\n";
         lzw_sem_timer.stop();
