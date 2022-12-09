@@ -3,32 +3,32 @@
 typedef ap_uint<72> associative_mem;
 typedef ap_uint<9> associative_key;
 
-void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
-  for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
-	// #pragma HLS unroll
-	for (uint32_t j=0; j<BUCKET_SIZE; j++)
+void hashmap_create(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY]) {
+	#pragma HLS inline
+  HASHMAP_CREATE_LOOP1:for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
+	#pragma HLS LOOP_FLATTEN
+	HASHMAP_CREATE_LOOP2:for (uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
-		// #pragma HLS unroll
-    	hash_entries[i][j].key = 0;
+		#pragma HLS UNROLL FACTOR=3
+    	hash_entries[j][i].key = 0;
 	}
   }
 	// memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
   	return;
 }
 
-bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, int32_t code) 
+bool hashmap_put(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t key, int32_t code) 
 {
-	#pragma HLS inline
 	uint32_t index = key % HASHMAP_CAPACITY;
 
-	for( uint32_t j=0; j<BUCKET_SIZE; j++)
+	HASHMAP_put_LOOP:for( uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
 		// #pragma HLS unroll
-		if (hash_entries[index][j].key == 0) 
+		if (hash_entries[j][index].key == 0) 
 		{
 			// #pragma HLS unroll
-			hash_entries[index][j].key = key;
-			hash_entries[index][j].code = code;
+			hash_entries[j][index].key = key;
+			hash_entries[j][index].code = code;
 			// std::cout<<"putting value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
 			return true;
 		}
@@ -41,15 +41,15 @@ bool hashmap_put(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key, int3
 //   map->size++;
 }
 
-int32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
+int32_t hashmap_get(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t key)
 {
-	#pragma HLS inline
 	uint32_t index = key % HASHMAP_CAPACITY;
-	for( uint32_t j=0; j<BUCKET_SIZE; j++)
+	HASHMAP_GET_LOOP:for( uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
-		if (hash_entries[index][j].key == key) {
+		#pragma HLS UNROLL
+		if (hash_entries[j][index].key == key) {
 			// std::cout<<"found key: "<<key<<" at "<<index<<"\n";
-			return hash_entries[index][j].code;
+			return hash_entries[j][index].code;
 		}
 	}
 	// index = (index + 1) % HASHMAP_CAPACITY;
@@ -58,24 +58,14 @@ int32_t hashmap_get(hashmap_entry_t hash_entries[][BUCKET_SIZE], uint32_t key)
 }
 
 
-
-uint32_t djb2hash(const void *key, int len) {
-  uint32_t hash = 5381;
-  const uint64_t * data = (const uint64_t *)key;
-
-  for (size_t i = 0; i < len; i++)
-    hash = ((hash << 5) + hash) + data[i]; /* hash * 33 + c */
-
-  return hash;
-}
-
 uint32_t FNVHash(const void * key, unsigned int length) {
 	const unsigned int fnv_prime = 0x811C9DC5;
 	unsigned int hash = 0;
 	const char * str = (const char *)key;
 	unsigned int i = 0;
 
-	for (i = 0; i < length; str++, i++)
+	// #pragma HLS PIPELINE II=1
+	FNVHASH_LOOP:for (i = 0; i < length; str++, i++)
 	{
 		hash *= fnv_prime;
 		hash ^= (*str);
@@ -84,66 +74,10 @@ uint32_t FNVHash(const void * key, unsigned int length) {
 	return hash;
 }
 
-uint64_t MurmurHash2( const void * key, int len)
-{
-	uint64_t seed = 1;
-  	const uint64_t m = 0xc6a4a7935bd1e995;
-  	const int r = 47;
-
-	const uint64_t * data = (const uint64_t *)key;
-
-	uint64_t h = seed ^ (len * m);
-
-  const uint64_t * end = data + (len/8);
-
-  while(data != end)
-  {
-    uint64_t k = *data;
-	data++;
-
-    k *= m; 
-    k ^= k >> r; 
-    k *= m; 
-    
-    h ^= k;
-    h *= m; 
-  }
-
-  const unsigned char * data2 = (const unsigned char*)data;
-
-  switch(len & 7)
-  {
-  case 7: h ^= uint64_t(data2[6]) << 48;
-  case 6: h ^= uint64_t(data2[5]) << 40;
-  case 5: h ^= uint64_t(data2[4]) << 32;
-  case 4: h ^= uint64_t(data2[3]) << 24;
-  case 3: h ^= uint64_t(data2[2]) << 16;
-  case 2: h ^= uint64_t(data2[1]) << 8;
-  case 1: h ^= uint64_t(data2[0]);
-          h *= m;
-  };
- 
-  h ^= h >> r;
-  h *= m;
-  h ^= h >> r;
-
-  return h;
-}
-
-int32_t search(uint64_t* table, uint32_t length, uint64_t hash_val)
-{
-	for(uint64_t i = 0; i < length; i++)
-	{
-		if(table[i] == hash_val)
-			return i;
-	}
-	return -1;
-}
-
 uint8_t log_2(associative_mem bit_to_get)
 {
 	uint8_t addr = 0;
-	while ((bit_to_get >> 1)) {	// unroll for more speed.
+	LOG_LOOP:while ((bit_to_get >> 1)) {	// unroll for more speed.
   		addr++;
 		bit_to_get = bit_to_get>>1;
 	}
@@ -156,12 +90,14 @@ uint8_t associative_insert(associative_mem associative_map[][512], int32_t* asso
 	associative_key index[4];
 	associative_value_list[counter] = code; //put code in value bram
 
-	for (uint8_t i = 0; i<4; i++) {
+	ASSOC_INSERT_LOOP1:for (uint8_t i = 0; i<4; i++) {
+		#pragma HLS UNROLL
 		index[i] = (hash>>(i*9)) & 0x1FF;
 	}
 	bit_to_set = 1 << counter;
 
-	for (uint8_t i = 0; i<4; i++) {
+	ASSOC_INSERT_LOOP2:for (uint8_t i = 0; i<4; i++) {
+		#pragma HLS UNROLL
 		associative_map[i][index[i]] |= bit_to_set;
 	}
 
@@ -173,7 +109,8 @@ int32_t associative_lookup(associative_mem associative_map[4][512], int32_t* ass
 	associative_key index[4];
 	// std::cout<<"trying to lookup hash: "<<hash<<"\n";
 
-	for (uint8_t i = 0; i<4; i++) {
+	ASSOC_LOOKUP_LOOP:for (uint8_t i = 0; i<4; i++) {
+		#pragma HLS UNROLL
 		index[i] = (hash >> (i * 9)) & 0x1FF;	// Create 9-bit keys from the 32-bit hash
 	}
 
@@ -209,7 +146,7 @@ void load(unsigned char* input_packet,
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
-	for(uint32_t i = 0; i < num_chunks; i++)
+	LOAD_LOOP1:for(uint32_t i = 0; i < num_chunks; i++)
 	{
 		l_chunk_boundary = chunk_bndry[i];
 		unique = is_chunk_unique[i];
@@ -226,8 +163,9 @@ void load(unsigned char* input_packet,
 
 		if(unique)
 		{
-			for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
+			LOAD_LOOP2:for(uint32_t j = last_boundary; j < l_chunk_boundary + 1; j++)
 			{
+				#pragma HLS PIPELINE II=1
 				// std::cout<<"reading data in load: ";
 				uint8_t l_data = input_packet[j+2];
 				// std::cout << l_data << "\n";
@@ -236,7 +174,6 @@ void load(unsigned char* input_packet,
 				
 			}
 		}
-
 		last_boundary = l_chunk_boundary + 1;
 	}
 }
@@ -254,9 +191,6 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				hls::stream<uint8_t> &lzw_encode_out_flag)
 {
 	uint32_t resetValue = 0;
-	// uint32_t output_code[MAX_NUM_OF_CODES];
-	// uint64_t table[MAX_NUM_OF_CODES];
-
 	uint32_t hash_val = 0;
 	uint8_t ch = 0;
 	uint32_t code = 0;
@@ -268,8 +202,9 @@ void lzw_encode(hls::stream<unsigned char> &input,
 	uint32_t last_boundary = 0;
 	
 
-	for(uint32_t j = 0; j < num_chunks; j++)
+	ENCODE_LOOP1:for(uint32_t j = 0; j < num_chunks; j++)
 	{
+		// #pragma HLS PIPELINE
 		l_chunk_boundary = boundaries_1.read();
 		unique = uniques_1.read();
 		l_head = head_1.read();
@@ -283,6 +218,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 		if(unique)
 		{
 			associative_mem associative_map[4][512];//10 brams 72 values
+			#pragma HLS array_partition variable=associative_map block factor=4 dim=1
 			// associative_mem key_high[512][4];
 			int values[72];
 			uint8_t counter = 0;
@@ -290,12 +226,19 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			// uint32_t ins_counter = 0;
 
 			// for(uint32_t i=0; i<512; i++)
-
-
-			hashmap_entry_t hash_entries[HASHMAP_CAPACITY][BUCKET_SIZE];
-			// hashmap_create(hash_entries);
-			memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
-			memset(associative_map, 0, sizeof(associative_mem)*4*512);
+			hashmap_entry_t hash_entries[BUCKET_SIZE][HASHMAP_CAPACITY];
+			#pragma HLS array_partition variable=hash_entries block factor=3 dim=1
+			hashmap_create(hash_entries);
+			// memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
+			// memset(associative_map, 0, sizeof(associative_mem)*4*512);
+			for(int i=0; i<512; i++)
+			{
+				for(int j=0; j<4; j++)
+				{
+					#pragma HLS UNROLL FACTOR=4
+					associative_map[j][i] = 0;
+				}
+			}
 
 
 			// std::cout<<"trying to insert in assoc\n";
@@ -325,7 +268,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			p[p_idx] = input.read();
 			p_idx++;
 			
-			for (uint32_t i = 0; i < length; i++)
+			ENCODE_LOOP2:for (uint32_t i = 0; i < length; i++)
 			{
 				if (i != length - 1)
 				{
@@ -424,7 +367,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
-	for(uint32_t j = 0; j < num_chunks; j++)
+	BITPACK_LOOP1:for(uint32_t j = 0; j < num_chunks; j++)
 	{
 		// uint32_t bit_pack_counter = 0;
 		
@@ -449,7 +392,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 
 			uint8_t flag = true;
 			flag = lzw_encode_out_flag.read();
-			while(flag)
+			BITPACK_LOOP2:while(flag)
 			{
 				curr_code = bit_pack_in.read();
 
@@ -457,7 +400,7 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 				write_data |= old_byte;
 				running_bits = rem_bits + (uint32_t)CODE_LENGTH;
 				write_byte_size = running_bits/8;
-				for (uint32_t i=1; i<=write_byte_size; i++)
+				BITPACK_LOOP3:for (uint32_t i=1; i<=write_byte_size; i++)
 				{
 					bit_pack_out_flag.write(1);
 					// bit_pack_counter++;
@@ -508,7 +451,7 @@ void store(hls::stream<unsigned char> &output,
 	uint8_t unique = false;
 	uint32_t l_head = 0;
 
-	for(uint32_t j = 0; j < num_chunks; j++)
+	STORE_LOOP1:for(uint32_t j = 0; j < num_chunks; j++)
 	{
 		// uint32_t store_counter = 0;
 
@@ -526,7 +469,7 @@ void store(hls::stream<unsigned char> &output,
 			// std::cout << "Flag received in store: " << flag << "\n";
 
 			// Writing unique chunk data to global file pointer
-			while(flag)
+			STORE_LOOP2:while(flag)
 			{
 				output_file[local_offset] = output.read();
 				local_offset++;
@@ -540,7 +483,7 @@ void store(hls::stream<unsigned char> &output,
 			// Writing unique chunk header to global file pointer
 			uint32_t chunk_header = 0;
 			chunk_header = output_chunk_length << 1;
-			for(uint32_t j = 0; j < 4; j++)
+			STORE_LOOP3:for(uint32_t j = 0; j < 4; j++)
 			{
 				output_file[offset] = chunk_header >> (8 * j);
 				offset++;
@@ -553,7 +496,7 @@ void store(hls::stream<unsigned char> &output,
 			uint32_t chunk_header = l_head;
 			// uint32_t chunk_header = size << 1;
 			
-			for(uint32_t j = 0; j < 4; j++)
+			STORE_LOOP4:for(uint32_t j = 0; j < 4; j++)
 			{
 				output_file[offset] = chunk_header >> (8 * j);
 				offset++;
@@ -603,24 +546,6 @@ void lzw_kernel(unsigned char* input_packet,
 	hls::stream<uint32_t, 8192> lzw_encode_out("lzw_encode_out");
 	hls::stream<unsigned char, 8192> bit_pack_out("bit_pack_out");
 	hls::stream<unsigned char, 8192> output("final_output");
-
-	// #pragma HLS STREAM type=fifo variable=input depth=500
-	// #pragma HLS STREAM type=fifo variable=boundaries_1 depth=500
-	// #pragma HLS STREAM type=fifo variable=boundaries_2 depth=500
-	// #pragma HLS STREAM type=fifo variable=boundaries_3 depth=500
-	// #pragma HLS STREAM type=fifo variable=uniques_1 depth=500
-	// #pragma HLS STREAM type=fifo variable=uniques_2 depth=500
-	// #pragma HLS STREAM type=fifo variable=uniques_3 depth=500
-	// #pragma HLS STREAM type=fifo variable=head_1 depth=500
-	// #pragma HLS STREAM type=fifo variable=head_2 depth=500
-	// #pragma HLS STREAM type=fifo variable=head_3 depth=500
-	
-	// #pragma HLS STREAM type=fifo variable=lzw_encode_out_flag depth=500
-	// #pragma HLS STREAM type=fifo variable=bit_pack_out_flag depth=500
-
-	// #pragma HLS STREAM type=fifo variable=lzw_encode_out depth=500
-	// #pragma HLS STREAM type=fifo variable=bit_pack_out depth=500
-	// #pragma HLS STREAM type=fifo variable=output depth=500
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);

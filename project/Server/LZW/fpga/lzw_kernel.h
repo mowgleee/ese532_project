@@ -27,7 +27,7 @@
 
 typedef struct hashmap_entry {
   uint32_t key;
-  uint32_t code;
+  int32_t code;
 } hashmap_entry_t;
 
 uint64_t MurmurHash64( const unsigned char * data, int len);
