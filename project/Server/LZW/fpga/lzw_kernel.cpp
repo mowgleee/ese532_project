@@ -5,25 +5,24 @@ typedef ap_uint<9> associative_key;
 
 void hashmap_create(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY]) {
 	#pragma HLS inline
-  HASHMAP_CREATE_LOOP1:for (uint32_t i = 0; i < HASHMAP_CAPACITY; i++) {
+  HASHMAP_CREATE_LOOP1:for (uint16_t i = 0; i < HASHMAP_CAPACITY; i++) {
 	#pragma HLS LOOP_FLATTEN
-	HASHMAP_CREATE_LOOP2:for (uint32_t j=0; j<BUCKET_SIZE; j++)
+	HASHMAP_CREATE_LOOP2:for (uint16_t j = 0; j<BUCKET_SIZE; j++)
 	{
 		#pragma HLS UNROLL FACTOR=3
     	hash_entries[j][i].key = 0;
 	}
   }
-	// memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
   	return;
 }
 
 bool hashmap_put(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t key, int32_t code) 
 {
-	uint32_t index = key % HASHMAP_CAPACITY;
+	uint16_t index = key % HASHMAP_CAPACITY;
 
 	HASHMAP_put_LOOP:for( uint32_t j=0; j<BUCKET_SIZE; j++)
 	{
-		// #pragma HLS unroll
+		#pragma HLS unroll factor =3
 		if (hash_entries[j][index].key == 0) 
 		{
 			// #pragma HLS unroll
@@ -33,27 +32,20 @@ bool hashmap_put(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t key,
 			return true;
 		}
 	}
-	// index = (index + 1) % HASHMAP_CAPACITY;
-	// hash_entries[index].key = key;
-	// hash_entries[index].code = code;
-	// std::cout<<"couldn't put value: "<<code<<" with key: "<<key<<" at: "<<index<<"\n";
 	return false;
-//   map->size++;
 }
 
 int32_t hashmap_get(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t key)
 {
-	uint32_t index = key % HASHMAP_CAPACITY;
-	HASHMAP_GET_LOOP:for( uint32_t j=0; j<BUCKET_SIZE; j++)
+	uint16_t index = key % HASHMAP_CAPACITY;
+	HASHMAP_GET_LOOP:for( uint16_t j=0; j<BUCKET_SIZE; j++)
 	{
-		#pragma HLS UNROLL
+		#pragma HLS UNROLL factor=3
 		if (hash_entries[j][index].key == key) {
 			// std::cout<<"found key: "<<key<<" at "<<index<<"\n";
 			return hash_entries[j][index].code;
 		}
 	}
-	// index = (index + 1) % HASHMAP_CAPACITY;
-	// std::cout<<"collision for index: "<<index<<"\n";
 	return -1;
 }
 
@@ -61,10 +53,10 @@ uint32_t FNVHash(const void * key, unsigned int length) {
 	const unsigned int fnv_prime = 0x811C9DC5;
 	unsigned int hash = 0;
 	const char * str = (const char *)key;
-	unsigned int i = 0;
+	// unsigned int i = 0;
 
 	// #pragma HLS PIPELINE II=1
-	FNVHASH_LOOP:for (i = 0; i < length; str++, i++)
+	FNVHASH_LOOP:for (uint16_t i = 0; i < length; str++, i++)
 	{
 		hash *= fnv_prime;
 		hash ^= (*str);
@@ -75,6 +67,7 @@ uint32_t FNVHash(const void * key, unsigned int length) {
 
 uint8_t log_2(associative_mem bit_to_get)
 {
+	#pragma HLS inline
 	uint8_t addr = 0;
 	LOG_LOOP:while ((bit_to_get >> 1)) {	// unroll for more speed.
   		addr++;
@@ -83,9 +76,9 @@ uint8_t log_2(associative_mem bit_to_get)
 	return addr;
 }
 
-uint8_t associative_insert(associative_mem associative_map[][512], int32_t* associative_value_list, uint8_t counter, uint32_t hash, uint32_t code)
+uint8_t associative_insert(associative_mem associative_map[][512], int32_t* associative_value_list, uint8_t counter, uint32_t hash, int32_t code)
 {
-	associative_mem bit_to_set = 0;
+	associative_mem bit_to_set;
 	associative_key index[4];
 	associative_value_list[counter] = code; //put code in value bram
 
@@ -141,9 +134,9 @@ void load(unsigned char* input_packet,
 {
 	uint32_t last_boundary = 0;
 
-	uint32_t l_chunk_boundary = 0;
-	uint8_t unique = false;
-	uint32_t l_head = 0;
+	uint32_t l_chunk_boundary;
+	uint8_t unique;
+	uint32_t l_head;
 
 	LOAD_LOOP1:for(uint32_t i = 0; i < num_chunks; i++)
 	{
@@ -151,10 +144,6 @@ void load(unsigned char* input_packet,
 		unique = is_chunk_unique[i];
 		l_head = dup_chunk_head[i];
 
-		// std::cout << "\nChunk \"" << i << "\" in HW ----- Start Boundary: " << last_boundary << " End Boundary: " << l_chunk_boundary << "\n";
-		// std::cout << "CHunk unique: " << unique << "\n";
-		// std::cout << "CHunk header: " << l_head << "\n";
-		
 		boundaries_1.write(l_chunk_boundary);
 		uniques_1.write(unique);
 		head_1.write(l_head);
@@ -189,14 +178,13 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				hls::stream<uint32_t> &head_2,
 				hls::stream<uint8_t> &lzw_encode_out_flag)
 {
-	uint32_t resetValue = 0;
-	uint32_t hash_val = 0;
-	uint8_t ch = 0;
-	uint32_t code = 0;
+	uint32_t hash_val;
+	// uint8_t ch = 0;
+	uint32_t code;
 
-	uint32_t l_chunk_boundary = 0;
-	uint8_t unique = false;
-	uint32_t l_head = 0;
+	uint32_t l_chunk_boundary;
+	uint8_t unique;
+	uint32_t l_head;
 
 	uint32_t last_boundary = 0;
 	
@@ -221,7 +209,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			// associative_mem key_high[512][4];
 			int values[72];
 			uint8_t counter = 0;
-			int32_t match = 0;
+			int32_t match;
 			// uint32_t ins_counter = 0;
 
 			// for(uint32_t i=0; i<512; i++)
@@ -232,6 +220,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 			// memset(associative_map, 0, sizeof(associative_mem)*4*512);
 			for(int i=0; i<512; i++)
 			{
+				#pragma HLS LOOP_FLATTEN
 				for(int j=0; j<4; j++)
 				{
 					#pragma HLS UNROLL FACTOR=4
@@ -239,30 +228,15 @@ void lzw_encode(hls::stream<unsigned char> &input,
 				}
 			}
 
-
-			// std::cout<<"trying to insert in assoc\n";
-
-			// counter = associative_insert(associative_map, values, counter, 370, 500);
-			// // std::cout<< "counter returned from ass: "<<counter<<"\n";
-			// printf("new counter from insert: %d", counter);
-
-			// // std::cout<<"value from bram "<<values[counter-1]<<"\n";
-			// printf("value from bram: %d \n", values[counter-1]);
-			// match = associative_lookup(associative_map, values, 370);
-			// std::cout<<"From assoc lookup: match at: "<<match<<" counter: "<<counter<<"\n";
-
-
-			// std::cout<<"created new hash map\n";
-
 			code = 256;
 			uint32_t length = l_chunk_boundary - last_boundary + 1;
 
 			int32_t out_code = 0;
 
 			uint8_t c;
-			uint8_t p[MAX_NUM_OF_CODES] = {0};
+			uint8_t p[MAX_NUM_OF_CODES];
 			uint32_t p_idx = 0;
-			uint32_t op_idx = 0;
+			// uint32_t op_idx = 0;
 
 			p[p_idx] = input.read();
 			p_idx++;
@@ -278,7 +252,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 
 				// Search algorithm for the array
 				hash_val = FNVHash((void*)p, p_idx);
-				already_sent=false;
+				already_sent = false;
 
 				match = hashmap_get(hash_entries, hash_val);
 
@@ -311,13 +285,7 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					bool put_pass = hashmap_put(hash_entries, hash_val, code);
 					if(!put_pass && counter<72)
 					{
-						// if(counter==0)
-						// {
-						// 	memset(associative_map, 0, sizeof(associative_mem)*4*512);
-						// }
 						counter = associative_insert(associative_map, values, counter, hash_val, code);
-						// ins_counter++;
-						// printf("Insert in assoc counter: %d\n", ins_counter);
 					}
 					
 					code++;
@@ -363,8 +331,8 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 				hls::stream<uint8_t> &bit_pack_out_flag)
 {
 	// uint32_t l_chunk_boundary = 0;
-	uint8_t unique = false;
-	uint32_t l_head = 0;
+	uint8_t unique;
+	uint32_t l_head;
 
 	BITPACK_LOOP1:for(uint32_t j = 0; j < num_chunks; j++)
 	{
@@ -381,15 +349,15 @@ void bit_pack(hls::stream<uint32_t> &bit_pack_in,
 		if(unique)
 		{
 			uint32_t offset_pack = 0;
-			uint32_t curr_code = 0;
-			uint32_t write_data = 0;
+			uint32_t curr_code;
+			uint32_t write_data;
 			uint32_t old_byte = 0;
 			uint32_t rem_bits = 0;
-			uint32_t running_bits = 0;
-			uint32_t write_byte_size = 0;	// number of bytes to write
-			uint8_t write_byte = 0;	// whats written in file
+			uint32_t running_bits;
+			uint32_t write_byte_size;	// number of bytes to write
+			uint8_t write_byte;	// whats written in file
 
-			uint8_t flag = true;
+			uint8_t flag;
 			flag = lzw_encode_out_flag.read();
 			BITPACK_LOOP2:while(flag)
 			{
@@ -447,12 +415,13 @@ void store(hls::stream<unsigned char> &output,
 	uint32_t offset = 0;
 
 	// uint32_t l_chunk_boundary = 0;
-	uint8_t unique = false;
-	uint32_t l_head = 0;
+	uint8_t unique;
+	uint32_t l_head;
 
 	STORE_LOOP1:for(uint32_t j = 0; j < num_chunks; j++)
 	{
 		// uint32_t store_counter = 0;
+		uint32_t chunk_header = 0;
 
 		// l_chunk_boundary = boundaries_3.read();
 		unique = uniques_3.read();
@@ -470,6 +439,7 @@ void store(hls::stream<unsigned char> &output,
 			// Writing unique chunk data to global file pointer
 			STORE_LOOP2:while(flag)
 			{
+				#pragma HLS PIPELINE II=1
 				output_file[local_offset] = output.read();
 				local_offset++;
 				output_chunk_length++;
@@ -480,9 +450,9 @@ void store(hls::stream<unsigned char> &output,
 			}
 
 			// Writing unique chunk header to global file pointer
-			uint32_t chunk_header = 0;
+			// chunk_header = 0;
 			chunk_header = output_chunk_length << 1;
-			STORE_LOOP3:for(uint32_t j = 0; j < 4; j++)
+			STORE_LOOP3:for(uint16_t j = 0; j < 4; j++)
 			{
 				output_file[offset] = chunk_header >> (8 * j);
 				offset++;
@@ -492,12 +462,12 @@ void store(hls::stream<unsigned char> &output,
 		else
 		{
 			// Writing duplicate chunk header to global file pointer
-			uint32_t chunk_header = l_head;
+			// chunk_header = l_head;
 			// uint32_t chunk_header = size << 1;
 			
 			STORE_LOOP4:for(uint32_t j = 0; j < 4; j++)
 			{
-				output_file[offset] = chunk_header >> (8 * j);
+				output_file[offset] = l_head >> (8 * j);
 				offset++;
 			}
 		}
@@ -544,7 +514,7 @@ void lzw_kernel(unsigned char* input_packet,
 
 	hls::stream<uint32_t, 8192> lzw_encode_out("lzw_encode_out");
 	hls::stream<unsigned char, 8192> bit_pack_out("bit_pack_out");
-	hls::stream<unsigned char, 8192> output("final_output");
+	// hls::stream<unsigned char, 8192> output("final_output");
 	
 
 	// load(input_packet, chunk_bndry, is_chunk_unique, local_num_chunks, input);
