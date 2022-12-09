@@ -57,7 +57,6 @@ int32_t hashmap_get(hashmap_entry_t hash_entries[][HASHMAP_CAPACITY], uint32_t k
 	return -1;
 }
 
-
 uint32_t FNVHash(const void * key, unsigned int length) {
 	const unsigned int fnv_prime = 0x811C9DC5;
 	unsigned int hash = 0;
