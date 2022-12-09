@@ -57,13 +57,18 @@ class lzw_request
     lzw_request();
     ~lzw_request();
     // void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr, uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique);
-    void init(uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique);
+    void init();
     void set_args(uint32_t num_chunks);
     void run();
 
     unsigned char* input_to_fpga;
     unsigned char* output_from_fpga;
     uint32_t* ptr_output_size;
+    
+    uint32_t* chunk_boundaries;
+    uint8_t* is_unique;
+    uint32_t* dup_chunk_head;
+
     // uint32_t* chunk_boundaries;
     // uint8_t* is_unique;
     // uint32_t* dup_chunk_head;
