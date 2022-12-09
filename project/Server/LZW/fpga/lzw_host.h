@@ -37,12 +37,12 @@ class lzw_request
     cl::CommandQueue  q;
     cl::Kernel        lzw_kernel;
     
-    cl::Buffer        input_buf;
-    cl::Buffer        output_buf;
-    cl::Buffer        output_size_buf;
-    cl::Buffer        chunk_boundaries_buf;
-    cl::Buffer        is_unique_buf;
-    cl::Buffer        dup_chunk_head_buf;
+    cl::Buffer        input_buf[NUM_PACKETS];
+    cl::Buffer        output_buf[NUM_PACKETS];
+    cl::Buffer        output_size_buf[NUM_PACKETS];
+    cl::Buffer        chunk_boundaries_buf[NUM_PACKETS];
+    cl::Buffer        is_unique_buf[NUM_PACKETS];
+    cl::Buffer        dup_chunk_head_buf[NUM_PACKETS];
 
     std::vector<cl::Event> write_events, exec_events, read_events;
     cl::Event write_ev, exec_ev, read_ev;
@@ -57,17 +57,19 @@ class lzw_request
     lzw_request();
     ~lzw_request();
     // void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr, uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique);
-    void init();
-    void set_args(uint32_t num_chunks);
-    void run();
+    // void init();
+    void set_args(uint32_t num_chunks, uint32_t);
+    void run(uint32_t);
+    void finish();
+    void wait(uint32_t);
 
-    unsigned char* input_to_fpga;
-    unsigned char* output_from_fpga;
-    uint32_t* ptr_output_size;
+    unsigned char* input_to_fpga[NUM_PACKETS];
+    unsigned char* output_from_fpga[NUM_PACKETS];
+    uint32_t* ptr_output_size[NUM_PACKETS];
     
-    uint32_t* chunk_boundaries;
-    uint8_t* is_unique;
-    uint32_t* dup_chunk_head;
+    uint32_t* chunk_boundaries[NUM_PACKETS];
+    uint8_t* is_unique[NUM_PACKETS];
+    uint32_t* dup_chunk_head[NUM_PACKETS];
 
     // uint32_t* chunk_boundaries;
     // uint8_t* is_unique;
