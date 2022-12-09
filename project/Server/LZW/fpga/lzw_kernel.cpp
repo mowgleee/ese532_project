@@ -12,7 +12,7 @@ void hashmap_create(hashmap_entry_t hash_entries[][BUCKET_SIZE]) {
     	hash_entries[i][j].key = 0;
 	}
   }
-	memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
+	// memset(hash_entries, 0, sizeof(hashmap_entry_t)*BUCKET_SIZE*HASHMAP_CAPACITY);
   	return;
 }
 
