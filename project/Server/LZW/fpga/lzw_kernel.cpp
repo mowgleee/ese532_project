@@ -369,10 +369,10 @@ void lzw_encode(hls::stream<unsigned char> &input,
 					bool put_pass = hashmap_put(hash_entries, hash_val, code);
 					if(!put_pass && counter<72)
 					{
-						if(counter==0)
-						{
-							memset(associative_map, 0, sizeof(associative_mem)*4*512);
-						}
+						// if(counter==0)
+						// {
+						// 	memset(associative_map, 0, sizeof(associative_mem)*4*512);
+						// }
 						counter = associative_insert(associative_map, values, counter, hash_val, code);
 						// ins_counter++;
 						// printf("Insert in assoc counter: %d\n", ins_counter);
