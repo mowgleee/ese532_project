@@ -35,7 +35,7 @@
 #define DONE_BIT_H (1 << 15)
 
 #define WIN_SIZE 16
-#define MIN_CHUNK_SIZE 1024
+#define MIN_CHUNK_SIZE 256
 #define PRIME 3
 #define MODULUS 256
 #define TARGET 0
