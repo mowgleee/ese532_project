@@ -94,14 +94,7 @@ void lzw_request::set_args(uint32_t num_chunks, uint32_t count)
 void lzw_request::run(uint32_t count)
 {
     kernel_mem_timer.start();
-    // static uint32_t flag = 0;
-    // if(flag == 0) {
-        OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf[count], chunk_boundaries_buf[count], is_unique_buf[count], dup_chunk_head_buf[count]}, 0 /* 0 means from host*/, NULL, &write_ev));
-    //     flag++;
-    // } else {
-    //     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf[count], chunk_boundaries_buf[count], is_unique_buf[count], dup_chunk_head_buf[count]}, 0 /* 0 means from host*/, &write_events, &write_ev));
-    //     write_events.pop_back();
-    // }
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf[count], chunk_boundaries_buf[count], is_unique_buf[count], dup_chunk_head_buf[count]}, 0 /* 0 means from host*/, NULL, &write_ev));
     write_events.push_back(write_ev);
     kernel_mem_timer.stop();
     printf("Enqueueing the kernel.\n");
