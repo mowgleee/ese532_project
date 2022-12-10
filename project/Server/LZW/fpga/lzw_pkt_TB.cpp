@@ -171,7 +171,7 @@ int main()
     // uint8_t* input_packet = &_input_packet[0];
     // uint32_t chunk_bndry[] = {2, 10, 471, 621};     // WARNING: Hls::stream 'bit_pack_out_flag' is read while empty, which may result in RTL simulation hanging.
     // uint32_t chunk_bndry[] = {50, 200, 471, 624};
-    uint32_t chunk_bndry[] = {2500,1500,2000,2500,1636,1794,1821,2084,2479,2786};
+    uint32_t chunk_bndry[] = {1000,1500,2000,2500,1636,1794,1821,2084,2479,2786};
     // uint32_t *chunk_bndry = (uint32_t*)calloc(4, sizeof(uint32_t));
     // chunk_bndry[0] = 50;
     // chunk_bndry[1] = 200;
@@ -179,7 +179,7 @@ int main()
     // chunk_bndry[3] = 626;
     // uint32_t chunk_bndry[] = {152, 300, 471, 621};
   
-    uint32_t num_chunks = 1;
+    uint32_t num_chunks = 4;
     // uint8_t is_chunk_unique[] = {1, 1, 0, 1};
     uint8_t is_chunk_unique[] = {1, 1, 0, 1, 1, 1, 0, 1, 0, 1};
     // uint8_t *is_chunk_unique=&_is_chunk_unique[0];

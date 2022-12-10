@@ -485,7 +485,7 @@ void lzw_kernel(unsigned char* input_packet,
 				uint32_t* output_size,
 				uint32_t* dup_chunk_head)
 {
-	#pragma HLS INTERFACE m_axi port=input_packet bundle=p1 depth=8192
+	#pragma HLS INTERFACE m_axi port=input_packet bundle=p1 depth=8191
 	#pragma HLS INTERFACE m_axi port=output_file bundle=p2 depth=8192
 	#pragma HLS INTERFACE m_axi port=chunk_bndry bundle=p0 depth=512
 	#pragma HLS INTERFACE m_axi port=is_chunk_unique bundle=p0 depth=512
@@ -495,7 +495,7 @@ void lzw_kernel(unsigned char* input_packet,
 
 	#pragma HLS DATAFLOW
 
-	hls::stream<unsigned char, 8192> input("input_to_store");
+	hls::stream<unsigned char, 4096> input("input_to_store");
 	
 	hls::stream<uint32_t, 512> boundaries_1("boundaries_1");
 	hls::stream<uint8_t, 512> uniques_1("uniques_1");
@@ -512,8 +512,8 @@ void lzw_kernel(unsigned char* input_packet,
 	hls::stream<uint8_t, 512> lzw_encode_out_flag("lzw_encode_out_flag");
 	hls::stream<uint8_t, 512> bit_pack_out_flag("bit_pack_out_flag");
 
-	hls::stream<uint32_t, 8192> lzw_encode_out("lzw_encode_out");
-	hls::stream<unsigned char, 8192> bit_pack_out("bit_pack_out");
+	hls::stream<uint32_t, 4096> lzw_encode_out("lzw_encode_out");
+	hls::stream<unsigned char, 4096> bit_pack_out("bit_pack_out");
 	// hls::stream<unsigned char, 8192> output("final_output");
 	
 
