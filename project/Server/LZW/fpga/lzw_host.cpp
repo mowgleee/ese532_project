@@ -61,7 +61,6 @@ lzw_request::lzw_request()
 
 
 
-
         OCL_CHECK(err, input_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga_2[i], &err));
         OCL_CHECK(err, output_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes, output_from_fpga_2[i], &err));
         OCL_CHECK(err, output_size_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size_2[i], &err));
