@@ -113,7 +113,7 @@ void lzw_request::set_args_2(uint32_t num_chunks, uint32_t count)
     OCL_CHECK(err, err = lzw_kernel_2.setArg(6, dup_chunk_head_buf_2[count]));
 }
 
-void lzw_request::run(uint32_t count_1, uint32_t count_2)
+void lzw_request::run_1(uint32_t count_1)
 {
     kernel_mem_timer.start();
     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf_1[count_1], chunk_boundaries_buf_1[count_1], is_unique_buf_1[count_1], dup_chunk_head_buf_1[count_1]}, 0 /* 0 means from host*/, NULL, &write_ev_1));
@@ -128,9 +128,10 @@ void lzw_request::run(uint32_t count_1, uint32_t count_2)
     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf_1[count_1], output_size_buf_1[count_1]}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events_1, &read_ev_1));
     kernel_mem_timer.stop();
     read_events_1.push_back(read_ev_1);
+}
 
-    
-
+void lzw_request::run_2(uint32_t count_2)
+{
     kernel_mem_timer.start();
     OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf_2[count_2], chunk_boundaries_buf_2[count_2], is_unique_buf_2[count_2], dup_chunk_head_buf_2[count_2]}, 0 /* 0 means from host*/, NULL, &write_ev_2));
     write_events_2.push_back(write_ev_2);
@@ -168,53 +169,61 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         static uint32_t count = 0;
         sem_wait(&(sems->sem_lzw));
         lzw_sem_timer.start();
-        packet* pptr_1, pptr_2;
-        uint8_t* buff_1;
-        uint8_t* buff_2;
-        buff_1 = input[count % NUM_PACKETS];
-        buff_2 = input[(count+1) % NUM_PACKETS];
+        packet* pptr;
+        uint8_t* buff;
+        // uint8_t* buff_2;
+        buff = input[count % NUM_PACKETS];
+        // buff_2 = input[(count+1) % NUM_PACKETS];
 		// buff = &buff[0];   ///for memory allignment. send full packet including header
-        pptr_1 = packarray[count % NUM_PACKETS];
-        pptr_2 = packarray[(count+1) % NUM_PACKETS];
+        pptr = packarray[count % NUM_PACKETS];
+        // pptr_2 = packarray[(count+1) % NUM_PACKETS];
         makelog(VERB_DEBUG,"Semaphore for LZW Received");
         makelog(VERB_DEBUG,"LZW Packet Info:\n LZW Packet Num: %d\n LZW Packet Size: %d\n LZW No of Chunks in Packet: %d\n LZW Count: %d\n",pptr->num,pptr->size,pptr->num_of_chunks,count);
 
 
-        uint32_t packet_size_1 = pptr_1->size;
-        uint32_t num_chunks_1 = pptr_1->num_of_chunks;
+        uint32_t packet_size = pptr->size;
+        uint32_t num_chunks = pptr->num_of_chunks;
 
-        uint32_t curr_buff_num_1 = (count % NUM_PACKETS);
+        uint32_t curr_buff_num = (count % NUM_PACKETS);
 
-        uint32_t packet_size_2 = pptr_2->size;
-        uint32_t num_chunks_2 = pptr_2->num_of_chunks;
+        // uint32_t packet_size_2 = pptr_2->size;
+        // uint32_t num_chunks_2 = pptr_2->num_of_chunks;
 
-        uint32_t curr_buff_num_2 = ((count+1) % NUM_PACKETS);
+        // uint32_t curr_buff_num_2 = ((count+1) % NUM_PACKETS);
 
-        for(uint32_t i = 0; i < num_chunks_1; i++)
+        if(count%2 == 0)
         {
-            kernel_cl_obj->chunk_boundaries_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].upper_bound;
-            kernel_cl_obj->dup_chunk_head_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].header;
-            kernel_cl_obj->is_unique_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].is_unique;
+            for(uint32_t i = 0; i < num_chunks; i++)
+            {
+                kernel_cl_obj->chunk_boundaries_1[curr_buff_num/2][i] = pptr->curr_chunk[i].upper_bound;
+                kernel_cl_obj->dup_chunk_head_1[curr_buff_num/2][i] = pptr->curr_chunk[i].header;
+                kernel_cl_obj->is_unique_1[curr_buff_num/2][i] = pptr->curr_chunk[i].is_unique;
+            }
+
+            memcpy(kernel_cl_obj->input_to_fpga_1[curr_buff_num/2], buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+
+            kernel_cl_obj->set_args_1(num_chunks, curr_buff_num/2);
+
+            kernel_cl_obj->run_1(curr_buff_num/2);
         }
 
-        memcpy(kernel_cl_obj->input_to_fpga_1[curr_buff_num_1], buff_1, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
-
-
-        for(uint32_t i = 0; i < num_chunks_2; i++)
+        else
         {
-            kernel_cl_obj->chunk_boundaries_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].upper_bound;
-            kernel_cl_obj->dup_chunk_head_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].header;
-            kernel_cl_obj->is_unique_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].is_unique;
+            for(uint32_t i = 0; i < num_chunks; i++)
+            {
+                kernel_cl_obj->chunk_boundaries_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].upper_bound;
+                kernel_cl_obj->dup_chunk_head_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].header;
+                kernel_cl_obj->is_unique_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].is_unique;
+            }
+
+            memcpy(kernel_cl_obj->input_to_fpga_2[curr_buff_num/2], buff_1, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+
+            kernel_cl_obj->set_args_2(num_chunks, curr_buff_num);
+
+            kernel_cl_obj->run_2(curr_buff_num/2);
         }
 
-        memcpy(kernel_cl_obj->input_to_fpga_2[curr_buff_num_2], buff_2, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
-
-        // kernel_cl_obj.init(packet_size, num_chunks, &buff[0], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
-
-        kernel_cl_obj->set_args_1(num_chunks_1, curr_buff_num_1);
-        kernel_cl_obj->set_args_2(num_chunks_2, curr_buff_num_2);
-
-        kernel_cl_obj->run(curr_buff_num_1, curr_buff_num_2);
+        // kernel_cl_obj->run_1(curr_buff_num, curr_buff_num_2);
 
         // ------------------------------------------------------------------------------------
         // Step 4: Release Allocated Resources
