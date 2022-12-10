@@ -35,17 +35,28 @@ class lzw_request
     cl::Program::Binaries bins;
     cl::Program       program;
     cl::CommandQueue  q;
-    cl::Kernel        lzw_kernel;
+    cl::Kernel        lzw_kernel_1;
+    cl::Kernel        lzw_kernel_2;
     
-    cl::Buffer        input_buf[NUM_PACKETS];
-    cl::Buffer        output_buf[NUM_PACKETS];
-    cl::Buffer        output_size_buf[NUM_PACKETS];
-    cl::Buffer        chunk_boundaries_buf[NUM_PACKETS];
-    cl::Buffer        is_unique_buf[NUM_PACKETS];
-    cl::Buffer        dup_chunk_head_buf[NUM_PACKETS];
+    cl::Buffer        input_buf_1[NUM_PACKETS/2];
+    cl::Buffer        output_buf_1[NUM_PACKETS/2];
+    cl::Buffer        output_size_buf_1[NUM_PACKETS/2];
+    cl::Buffer        chunk_boundaries_buf_1[NUM_PACKETS/2];
+    cl::Buffer        is_unique_buf_1[NUM_PACKETS/2];
+    cl::Buffer        dup_chunk_head_buf_1[NUM_PACKETS/2];
 
-    std::vector<cl::Event> write_events, exec_events, read_events;
-    cl::Event write_ev, exec_ev, read_ev;
+    cl::Buffer        input_buf_2[NUM_PACKETS/2];
+    cl::Buffer        output_buf_2[NUM_PACKETS/2];
+    cl::Buffer        output_size_buf_2[NUM_PACKETS/2];
+    cl::Buffer        chunk_boundaries_buf_2[NUM_PACKETS/2];
+    cl::Buffer        is_unique_buf_2[NUM_PACKETS/2];
+    cl::Buffer        dup_chunk_head_buf_2[NUM_PACKETS/2];
+
+    std::vector<cl::Event> write_events_1, exec_events_1, read_events_1;
+    cl::Event write_ev_1, exec_ev_1, read_ev_1;
+
+    std::vector<cl::Event> write_events_2, exec_events_2, read_events_2;
+    cl::Event write_ev_2, exec_ev_2, read_ev_2;
 
     size_t        output_pkt_bytes;// = (BLOCKSIZE*13/8) * sizeof(unsigned char);
     size_t        input_pkt_bytes;// = MAX_CHUNK_SIZE * sizeof(unsigned char);
@@ -58,18 +69,25 @@ class lzw_request
     ~lzw_request();
     // void init(uint32_t packet_size, uint32_t num_chunks, unsigned char* input_to_fpga, uint8_t* file_ptr, uint32_t* chunk_boundaries, uint32_t* dup_chunk_head, uint8_t* is_unique);
     // void init();
-    void set_args(uint32_t num_chunks, uint32_t);
+    void set_args_1(uint32_t num_chunks_1, uint32_t);
+    void set_args_2(uint32_t num_chunks_2, uint32_t);
     void run(uint32_t);
     void finish();
     void wait(uint32_t);
 
-    unsigned char* input_to_fpga[NUM_PACKETS];
-    unsigned char* output_from_fpga[NUM_PACKETS];
-    uint32_t* ptr_output_size[NUM_PACKETS];
-    
-    uint32_t* chunk_boundaries[NUM_PACKETS];
-    uint8_t* is_unique[NUM_PACKETS];
-    uint32_t* dup_chunk_head[NUM_PACKETS];
+    unsigned char* input_to_fpga_1[NUM_PACKETS/2];
+    unsigned char* output_from_fpga_1[NUM_PACKETS/2];
+    uint32_t* ptr_output_size_1[NUM_PACKETS/2];
+    uint32_t* chunk_boundaries_1[NUM_PACKETS/2];
+    uint8_t* is_unique_1[NUM_PACKETS/2];
+    uint32_t* dup_chunk_head_1[NUM_PACKETS/2];
+
+    unsigned char* input_to_fpga_2[NUM_PACKETS/2];
+    unsigned char* output_from_fpga_2[NUM_PACKETS/2];
+    uint32_t* ptr_output_size_2[NUM_PACKETS/2];
+    uint32_t* chunk_boundaries_2[NUM_PACKETS/2];
+    uint8_t* is_unique_2[NUM_PACKETS/2];
+    uint32_t* dup_chunk_head_2[NUM_PACKETS/2];
 
     // uint32_t* chunk_boundaries;
     // uint8_t* is_unique;

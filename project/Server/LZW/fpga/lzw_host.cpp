@@ -14,7 +14,8 @@ lzw_request::lzw_request()
     bins = cl::Program::Binaries{{fileBuf, fileBufSize}};
     OCL_CHECK(err, program = cl::Program(context, devices, bins, NULL, &err));
     OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err));
-    OCL_CHECK(err, lzw_kernel = cl::Kernel(program, "lzw_kernel", &err));
+    OCL_CHECK(err, lzw_kernel_1 = cl::Kernel(program, "lzw_kernel:{lzw_kernel_1}", &err));
+    OCL_CHECK(err, lzw_kernel_2 = cl::Kernel(program, "lzw_kernel:{lzw_kernel_2}", &err));
 
     input_pkt_bytes = (BLOCKSIZE + 2) * sizeof(unsigned char);    // +2 for packet header
     output_pkt_bytes = (NUM_ELEMENTS) * sizeof(unsigned char);
@@ -22,92 +23,128 @@ lzw_request::lzw_request()
     is_unique_bytes = MAX_NUM_CHUNKS * sizeof(uint8_t);
     dup_chunk_head_bytes = MAX_NUM_CHUNKS * sizeof(uint32_t);
 
-    for(uint32_t i = 0; i < NUM_PACKETS; i++)
+    for(uint32_t i = 0; i < NUM_PACKETS/2; i++)
     {
-        posix_memalign((void**)&input_to_fpga[i], 4096, input_pkt_bytes);
+        posix_memalign((void**)&input_to_fpga_1[i], 4096, input_pkt_bytes);
         // output_from_fpga = (unsigned char *)calloc(BLOCKSIZE*13/8, sizeof(unsigned char));
-        posix_memalign((void**)&output_from_fpga[i], 4096, output_pkt_bytes);
+        posix_memalign((void**)&output_from_fpga_1[i], 4096, output_pkt_bytes);
         // ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
-        posix_memalign((void**)&ptr_output_size[i], 4096, sizeof(uint32_t));
+        posix_memalign((void**)&ptr_output_size_1[i], 4096, sizeof(uint32_t));
+        posix_memalign((void**)&chunk_boundaries_1[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+        posix_memalign((void**)&is_unique_1[i], 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
+        posix_memalign((void**)&dup_chunk_head_1[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
 
-        posix_memalign((void**)&chunk_boundaries[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
-        posix_memalign((void**)&is_unique[i], 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
-        posix_memalign((void**)&dup_chunk_head[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+
+
+        //for 2nd kernel
+        posix_memalign((void**)&input_to_fpga_2[i], 4096, input_pkt_bytes);
+        // output_from_fpga = (unsigned char *)calloc(BLOCKSIZE*13/8, sizeof(unsigned char));
+        posix_memalign((void**)&output_from_fpga_2[i], 4096, output_pkt_bytes);
+        // ptr_output_size = (uint32_t *)calloc(1, sizeof(uint32_t));
+        posix_memalign((void**)&ptr_output_size_2[i], 4096, sizeof(uint32_t));
+        posix_memalign((void**)&chunk_boundaries_2[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
+        posix_memalign((void**)&is_unique_2[i], 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
+        posix_memalign((void**)&dup_chunk_head_2[i], 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
     }
     // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
 
-    for(uint32_t i = 0; i < NUM_PACKETS; i++)
+    for(uint32_t i = 0; i < NUM_PACKETS; i=i+2)
     {
-        OCL_CHECK(err, input_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga[i], &err));
-        OCL_CHECK(err, output_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes, output_from_fpga[i], &err));
-        OCL_CHECK(err, output_size_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size[i], &err));
+        OCL_CHECK(err, input_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga_1[i], &err));
+        OCL_CHECK(err, output_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes, output_from_fpga_1[i], &err));
+        OCL_CHECK(err, output_size_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size_1[i], &err));
+        OCL_CHECK(err, chunk_boundaries_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, chunk_boundaries_bytes, chunk_boundaries_1[i], &err));
+        OCL_CHECK(err, is_unique_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, is_unique_bytes, is_unique_1[i], &err));
+        OCL_CHECK(err, dup_chunk_head_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, dup_chunk_head_bytes, dup_chunk_head_1[i], &err));
 
-        OCL_CHECK(err, chunk_boundaries_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, chunk_boundaries_bytes, chunk_boundaries[i], &err));
-        OCL_CHECK(err, is_unique_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, is_unique_bytes, is_unique[i], &err));
-        OCL_CHECK(err, dup_chunk_head_buf[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, dup_chunk_head_bytes, dup_chunk_head[i], &err));
+
+
+
+        OCL_CHECK(err, input_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga_2[i], &err));
+        OCL_CHECK(err, output_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes, output_from_fpga_2[i], &err));
+        OCL_CHECK(err, output_size_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(uint32_t), ptr_output_size_2[i], &err));
+        OCL_CHECK(err, chunk_boundaries_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, chunk_boundaries_bytes, chunk_boundaries_2[i], &err));
+        OCL_CHECK(err, is_unique_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, is_unique_bytes, is_unique_2[i], &err));
+        OCL_CHECK(err, dup_chunk_head_buf_2[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, dup_chunk_head_bytes, dup_chunk_head_2[i], &err));    
     }
-
     makelog(VERB_DEBUG, "LZW object constructor completed.\n");
 }
 
 lzw_request::~lzw_request()
 {
-    for(uint32_t i = 0; i < NUM_PACKETS; i++)
+    for(uint32_t i = 0; i < NUM_PACKETS; i=i+2)
     {
-        free(input_to_fpga[i]);
-        free(output_from_fpga[i]);
-        free(ptr_output_size[i]);
-        free(chunk_boundaries[i]);
-        free(dup_chunk_head[i]);
-        free(is_unique[i]);
+        free(input_to_fpga_1[i]);
+        free(output_from_fpga_1[i]);
+        free(ptr_output_size_1[i]);
+        free(chunk_boundaries_1[i]);
+        free(dup_chunk_head_1[i]);
+        free(is_unique_1[i]);
+
+        free(input_to_fpga_2[i]);
+        free(output_from_fpga_2[i]);
+        free(ptr_output_size_2[i]);
+        free(chunk_boundaries_2[i]);
+        free(dup_chunk_head_2[i]);
+        free(is_unique_2[i]);
     }
 }
 
-// void lzw_request::init()//, uint32_t* ptr_output_size)
-// {
-//     makelog(VERB_DEBUG, "Entered LZW initialization function.\n");
-
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(0, input_buf));
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(1, chunk_boundaries_buf));
-//     // // OCL_CHECK(err, err = lzw_kernel.setArg(2, num_chunks));
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(3, is_unique_buf));
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(4, output_buf));
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(5, output_size_buf));
-//     // OCL_CHECK(err, err = lzw_kernel.setArg(6, dup_chunk_head_buf));
-
-//     makelog(VERB_DEBUG, "Exiting LZW initialization function.\n");
-// }
-
-void lzw_request::set_args(uint32_t num_chunks, uint32_t count)
+void lzw_request::set_args_1(uint32_t num_chunks, uint32_t count)
 {
-    OCL_CHECK(err, err = lzw_kernel.setArg(0, input_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel.setArg(1, chunk_boundaries_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel.setArg(2, num_chunks));
-    OCL_CHECK(err, err = lzw_kernel.setArg(3, is_unique_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel.setArg(4, output_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel.setArg(5, output_size_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel.setArg(6, dup_chunk_head_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(0, input_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(1, chunk_boundaries_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(2, num_chunks));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(3, is_unique_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(4, output_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(5, output_size_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(6, dup_chunk_head_buf[count]));
 }
 
-void lzw_request::run(uint32_t count)
+void lzw_request::set_args_2(uint32_t num_chunks, uint32_t count)
+{
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(0, input_buf_2[count]));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(1, chunk_boundaries_buf_2[count]));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(2, num_chunks));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(3, is_unique_buf_2[count]));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(4, output_buf_2[count]));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(5, output_size_buf_2[count]));
+    OCL_CHECK(err, err = lzw_kernel_2.setArg(6, dup_chunk_head_buf_2[count]));
+}
+
+void lzw_request::run(uint32_t count_1, uint32_t count_2)
 {
     kernel_mem_timer.start();
-    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf[count], chunk_boundaries_buf[count], is_unique_buf[count], dup_chunk_head_buf[count]}, 0 /* 0 means from host*/, NULL, &write_ev));
-    write_events.push_back(write_ev);
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf_1[count_1], chunk_boundaries_buf_1[count_1], is_unique_buf_1[count_1], dup_chunk_head_buf_1[count_1]}, 0 /* 0 means from host*/, NULL, &write_ev_1));
+    write_events_1.push_back(write_ev_1);
     kernel_mem_timer.stop();
     printf("Enqueueing the kernel.\n");
     kernel_timer.start();
-    OCL_CHECK(err, err = q.enqueueTask(lzw_kernel, &write_events, &exec_ev));
-    exec_events.push_back(exec_ev);
+    OCL_CHECK(err, err = q.enqueueTask(lzw_kernel_1, &write_events_1, &exec_ev_1));
+    exec_events_1.push_back(exec_ev_1);
     kernel_timer.stop();
     kernel_mem_timer.start();
-    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf[count], output_size_buf[count]}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events, &read_ev));
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf_1[count_1], output_size_buf_1[count_1]}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events_1, &read_ev_1));
     kernel_mem_timer.stop();
-    read_events.push_back(read_ev);
-    // OCL_CHECK(err, err = read_ev.wait());
-    // q.finish();
+    read_events_1.push_back(read_ev_1);
+
+    
+
+    kernel_mem_timer.start();
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({input_buf_2[count_2], chunk_boundaries_buf_2[count_2], is_unique_buf_2[count_2], dup_chunk_head_buf_2[count_2]}, 0 /* 0 means from host*/, NULL, &write_ev_2));
+    write_events_2.push_back(write_ev_2);
+    kernel_mem_timer.stop();
+    printf("Enqueueing the kernel.\n");
+    kernel_timer.start();
+    OCL_CHECK(err, err = q.enqueueTask(lzw_kernel_2, &write_events_2, &exec_ev_2));
+    exec_events_2.push_back(exec_ev_2);
+    kernel_timer.stop();
+    kernel_mem_timer.start();
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({output_buf_2[count_2], output_size_buf_2[count_2]}, CL_MIGRATE_MEM_OBJECT_HOST, &exec_events_2, &read_ev_2));
+    kernel_mem_timer.stop();
+    read_events_2.push_back(read_ev_2);
 }
 
 void lzw_request::finish()
@@ -117,7 +154,7 @@ void lzw_request::finish()
 
 void lzw_request::wait(uint32_t count)
 {
-    OCL_CHECK(err, err = read_events[count].wait());
+    OCL_CHECK(err, err = read_events_1[count].wait());
 }
 
 void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
@@ -127,59 +164,58 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
     uint32_t write_counter = 0;
     uint32_t total_pkts_read = 0;
 
-    // uint32_t* chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-    // uint8_t* is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
-    // uint32_t* dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-
-    // uint32_t* chunk_boundaries;
-    // uint8_t* is_unique;
-    // uint32_t* dup_chunk_head;
-
-    // posix_memalign((void**)&chunk_boundaries, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
-    // posix_memalign((void**)&is_unique, 4096, sizeof(uint8_t) * (MAX_NUM_CHUNKS));
-    // posix_memalign((void**)&dup_chunk_head, 4096, sizeof(uint32_t) * (MAX_NUM_CHUNKS));
-    
-    // kernel_init_timer.start();
-    // kernel_cl_obj->init();
-    // kernel_init_timer.stop();
-
     while(1)
     {
         static uint32_t count = 0;
         sem_wait(&(sems->sem_lzw));
         lzw_sem_timer.start();
-        packet* pptr;
-        uint8_t* buff;
-        buff = input[count % NUM_PACKETS];
+        packet* pptr_1, pptr_2;
+        uint8_t* buff_1;
+        uint8_t* buff_2;
+        buff_1 = input[count % NUM_PACKETS];
+        buff_2 = input[(count+1) % NUM_PACKETS];
 		// buff = &buff[0];   ///for memory allignment. send full packet including header
-        pptr = packarray[count % NUM_PACKETS];
+        pptr_1 = packarray[count % NUM_PACKETS];
+        pptr_2 = packarray[(count+1) % NUM_PACKETS];
         makelog(VERB_DEBUG,"Semaphore for LZW Received");
         makelog(VERB_DEBUG,"LZW Packet Info:\n LZW Packet Num: %d\n LZW Packet Size: %d\n LZW No of Chunks in Packet: %d\n LZW Count: %d\n",pptr->num,pptr->size,pptr->num_of_chunks,count);
 
 
-        uint32_t packet_size = pptr->size;
-        uint32_t num_chunks = pptr->num_of_chunks;
+        uint32_t packet_size_1 = pptr_1->size;
+        uint32_t num_chunks_1 = pptr_1->num_of_chunks;
 
-        uint32_t curr_buff_num = (count % NUM_PACKETS);
+        uint32_t curr_buff_num_1 = (count % NUM_PACKETS);
 
-        // chunk_boundaries = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-        // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
-        // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
+        uint32_t packet_size_2 = pptr_2->size;
+        uint32_t num_chunks_2 = pptr_2->num_of_chunks;
 
-        for(uint32_t i = 0; i < num_chunks; i++)
+        uint32_t curr_buff_num_2 = ((count+1) % NUM_PACKETS);
+
+        for(uint32_t i = 0; i < num_chunks_1; i++)
         {
-            kernel_cl_obj->chunk_boundaries[curr_buff_num][i] = pptr->curr_chunk[i].upper_bound;
-            kernel_cl_obj->dup_chunk_head[curr_buff_num][i] = pptr->curr_chunk[i].header;
-            kernel_cl_obj->is_unique[curr_buff_num][i] = pptr->curr_chunk[i].is_unique;
+            kernel_cl_obj->chunk_boundaries_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].upper_bound;
+            kernel_cl_obj->dup_chunk_head_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].header;
+            kernel_cl_obj->is_unique_1[curr_buff_num_1][i] = pptr_1->curr_chunk[i].is_unique;
         }
 
-        memcpy(kernel_cl_obj->input_to_fpga[curr_buff_num], buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+        memcpy(kernel_cl_obj->input_to_fpga_1[curr_buff_num_1], buff_1, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+
+
+        for(uint32_t i = 0; i < num_chunks_2; i++)
+        {
+            kernel_cl_obj->chunk_boundaries_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].upper_bound;
+            kernel_cl_obj->dup_chunk_head_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].header;
+            kernel_cl_obj->is_unique_1[curr_buff_num_2][i] = pptr_2->curr_chunk[i].is_unique;
+        }
+
+        memcpy(kernel_cl_obj->input_to_fpga_2[curr_buff_num_2], buff_2, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
 
         // kernel_cl_obj.init(packet_size, num_chunks, &buff[0], &file[offset], chunk_boundaries, dup_chunk_head, is_unique);//, kernel_cl_obj->ptr_output_size);
 
-        kernel_cl_obj->set_args(num_chunks, curr_buff_num);
+        kernel_cl_obj->set_args_1(num_chunks_1, curr_buff_num_1);
+        kernel_cl_obj->set_args_2(num_chunks_2, curr_buff_num_2);
 
-        kernel_cl_obj->run(curr_buff_num);
+        kernel_cl_obj->run(curr_buff_num_1, curr_buff_num_2);
 
         // ------------------------------------------------------------------------------------
         // Step 4: Release Allocated Resources
@@ -192,12 +228,6 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         // std::cout << "Total latency of lzw_kernel MEM TRANSFER only: " << kernel_mem_timer.latency() << std::endl;
         // std::cout << "Average latency of lzw_hw_kernel initialization only: " << kernel_init_timer.avg_latency() << std::endl;
         // std::cout << "Total latency of lzw_kernel initialization only: " << kernel_init_timer.latency() << std::endl;
-
-        // Writing chunk header to global file pointer
-        // uint32_t chunk_header = (*(kernel_cl_obj->ptr_output_size) << 1);
-        //std::cout<<"\nLZW Header: "<<chunk_header<<"\n";
-        // memcpy(&file[offset], &chunk_header, sizeof(uint32_t));
-        // offset += sizeof(uint32_t);
 
         // Writing compressed chunk reveived from fpga to global file pointer
         if(count >= 49)
