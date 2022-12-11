@@ -50,7 +50,7 @@ lzw_request::lzw_request()
     // dup_chunk_head = (uint32_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint32_t));
     // is_unique = (uint8_t*)calloc(MAX_NUM_CHUNKS, sizeof(uint8_t));
 
-    for(uint32_t i = 0; i < NUM_PACKETS; i=i+2)
+    for(uint32_t i = 0; i < NUM_PACKETS/2; i=i+1)
     {
         OCL_CHECK(err, input_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, input_pkt_bytes, input_to_fpga_1[i], &err));
         OCL_CHECK(err, output_buf_1[i] = cl::Buffer(context, CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, output_pkt_bytes, output_from_fpga_1[i], &err));
@@ -73,7 +73,7 @@ lzw_request::lzw_request()
 
 lzw_request::~lzw_request()
 {
-    for(uint32_t i = 0; i < NUM_PACKETS; i=i+2)
+    for(uint32_t i = 0; i < NUM_PACKETS/2; i=i+1)
     {
         free(input_to_fpga_1[i]);
         free(output_from_fpga_1[i]);
@@ -93,13 +93,13 @@ lzw_request::~lzw_request()
 
 void lzw_request::set_args_1(uint32_t num_chunks, uint32_t count)
 {
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(0, input_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(1, chunk_boundaries_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(0, input_buf_1[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(1, chunk_boundaries_buf_1[count]));
     OCL_CHECK(err, err = lzw_kernel_1.setArg(2, num_chunks));
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(3, is_unique_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(4, output_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(5, output_size_buf[count]));
-    OCL_CHECK(err, err = lzw_kernel_1.setArg(6, dup_chunk_head_buf[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(3, is_unique_buf_1[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(4, output_buf_1[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(5, output_size_buf_1[count]));
+    OCL_CHECK(err, err = lzw_kernel_1.setArg(6, dup_chunk_head_buf_1[count]));
 }
 
 void lzw_request::set_args_2(uint32_t num_chunks, uint32_t count)
@@ -150,18 +150,27 @@ void lzw_request::run_2(uint32_t count_2)
 void lzw_request::finish()
 {
     q.finish();
+    q.finish();
 }
 
-void lzw_request::wait(uint32_t count)
+void lzw_request::wait_1(uint32_t count)
 {
     OCL_CHECK(err, err = read_events_1[count].wait());
+}
+
+void lzw_request::wait_2(uint32_t count)
+{
+    OCL_CHECK(err, err = read_events_2[count].wait());
 }
 
 void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
 {
 	// lzw_request kernel_cl_obj;
 
-    uint32_t write_counter = 0;
+    uint32_t read_counter_1 = 0;
+    uint32_t read_counter_2 = 0;
+    uint32_t total_pkts_read_1 = 0;
+    uint32_t total_pkts_read_2 = 0;
     uint32_t total_pkts_read = 0;
 
     while(1)
@@ -203,24 +212,28 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
             memcpy(kernel_cl_obj->input_to_fpga_1[curr_buff_num/2], buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
 
             kernel_cl_obj->set_args_1(num_chunks, curr_buff_num/2);
+            makelog(VERB_DEBUG,"Set args for kernel 1");
 
             kernel_cl_obj->run_1(curr_buff_num/2);
+            makelog(VERB_DEBUG,"Running kernel 1");
         }
 
         else
         {
             for(uint32_t i = 0; i < num_chunks; i++)
             {
-                kernel_cl_obj->chunk_boundaries_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].upper_bound;
-                kernel_cl_obj->dup_chunk_head_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].header;
-                kernel_cl_obj->is_unique_2[curr_buff_num/2][i] = pptr_1->curr_chunk[i].is_unique;
+                kernel_cl_obj->chunk_boundaries_2[curr_buff_num/2][i] = pptr->curr_chunk[i].upper_bound;
+                kernel_cl_obj->dup_chunk_head_2[curr_buff_num/2][i] = pptr->curr_chunk[i].header;
+                kernel_cl_obj->is_unique_2[curr_buff_num/2][i] = pptr->curr_chunk[i].is_unique;
             }
 
-            memcpy(kernel_cl_obj->input_to_fpga_2[curr_buff_num/2], buff_1, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
+            memcpy(kernel_cl_obj->input_to_fpga_2[curr_buff_num/2], buff, packet_size + 2);     // Copying 2 extra bytes of packet HEADER
 
-            kernel_cl_obj->set_args_2(num_chunks, curr_buff_num);
+            makelog(VERB_DEBUG,"Set args for kernel 2");
+            kernel_cl_obj->set_args_2(num_chunks, curr_buff_num/2);
 
             kernel_cl_obj->run_2(curr_buff_num/2);
+            makelog(VERB_DEBUG,"Running kernel 2");
         }
 
         // kernel_cl_obj->run_1(curr_buff_num, curr_buff_num_2);
@@ -238,19 +251,40 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         // std::cout << "Total latency of lzw_kernel initialization only: " << kernel_init_timer.latency() << std::endl;
 
         // Writing compressed chunk reveived from fpga to global file pointer
-        if(count >= 49)
+        if(count >= (NUM_PACKETS - 1))  //ring buffer full
         {
-            kernel_cl_obj->wait(total_pkts_read);
-            memcpy(&file[offset], kernel_cl_obj->output_from_fpga[write_counter], *(kernel_cl_obj->ptr_output_size[write_counter]));
-            offset+= *(kernel_cl_obj->ptr_output_size[write_counter]);
-            
-            if(write_counter < 49) {
-                write_counter++;
-            } else {
-                write_counter = 0;
+            if(count%2 == 0)
+            {
+                makelog(VERB_DEBUG,"Waiting on kernel 1 to read");
+                kernel_cl_obj->wait_1(total_pkts_read_1);
+                memcpy(&file[offset], kernel_cl_obj->output_from_fpga_1[read_counter_1], *(kernel_cl_obj->ptr_output_size_1[read_counter_1]));
+                offset+= *(kernel_cl_obj->ptr_output_size_1[read_counter_1]);
+                makelog(VERB_DEBUG,"copied output data from kernel 1");
+                
+                if(read_counter_1 < 24) {
+                    read_counter_1++;
+                } else {
+                    read_counter_1 = 0;
+                }
+                total_pkts_read_1++;
+            }
+            else
+            {
+                makelog(VERB_DEBUG,"Waiting on kernel 2 to read");
+                kernel_cl_obj->wait_2(total_pkts_read_2);
+                memcpy(&file[offset], kernel_cl_obj->output_from_fpga_2[read_counter_2], *(kernel_cl_obj->ptr_output_size_2[read_counter_2]));
+                offset+= *(kernel_cl_obj->ptr_output_size_2[read_counter_2]);
+                makelog(VERB_DEBUG,"copied output data from kernel 2");
+                
+                if(read_counter_2 < 24) {
+                    read_counter_2++;
+                } else {
+                    read_counter_2 = 0;
+                }
+                total_pkts_read_2++;
             }
 
-            total_pkts_read++;
+            total_pkts_read++;            
         }
 
         std::cout<<"\nLZW PACKET DONE\n";
@@ -258,29 +292,43 @@ void lzw_host(lzw_request *kernel_cl_obj, semaphores* sems, packet** packarray)
         std::cout<<"\nPosted getpacket semaphore for packet: " << count << "\n";
         if(count == total_packets)
         {
-            // uint32_t flag = write_counter - 1;
+            makelog(VERB_DEBUG,"Count: %d  Total_packets: %d Packets read by kernel 1: %d Packets read by kernel 2: %d\n", count, total_packets, total_pkts_read_1, total_pkts_read_2);
+            makelog(VERB_DEBUG, "Emptying the pipeline\n");
             while(total_pkts_read != (total_packets + 1))
             {
-                kernel_cl_obj->wait(total_pkts_read);
-                memcpy(&file[offset], kernel_cl_obj->output_from_fpga[write_counter], *(kernel_cl_obj->ptr_output_size[write_counter]));
-                offset+= *(kernel_cl_obj->ptr_output_size[write_counter]);
+                kernel_cl_obj->wait_1(total_pkts_read_1);
+                memcpy(&file[offset], kernel_cl_obj->output_from_fpga_1[read_counter_1], *(kernel_cl_obj->ptr_output_size_1[read_counter_1]));
+                offset+= *(kernel_cl_obj->ptr_output_size_1[read_counter_1]);
                 
-                if(write_counter < 49) {
-                    write_counter++;
+                if(read_counter_1 < (NUM_PACKETS - 1)) {
+                    read_counter_1++;
                 } else {
-                    write_counter = 0;
+                    read_counter_1 = 0;
                 }
-
                 total_pkts_read++;
+                if(total_pkts_read == (total_packets + 1)) {
+                    break;
+                }
+                kernel_cl_obj->wait_2(total_pkts_read_2);
+                memcpy(&file[offset], kernel_cl_obj->output_from_fpga_2[read_counter_2], *(kernel_cl_obj->ptr_output_size_2[read_counter_2]));
+                offset+= *(kernel_cl_obj->ptr_output_size_2[read_counter_2]);
+                
+                if(read_counter_2 < (NUM_PACKETS - 1)) {
+                    read_counter_2++;
+                } else {
+                    read_counter_2 = 0;
+                }
+                total_pkts_read++;
+                if(total_pkts_read == (total_packets + 1)) {
+                    break;
+                }
             }
             kernel_cl_obj->finish();
             std::cout<<"LZW count= "<<count<<" total_packets= "<<total_packets<<"\n";
-            // free(chunk_boundaries);
-            // free(is_unique);
-            // free(dup_chunk_head);
             lzw_sem_timer.stop();
             return;
         }
         count++;
+        lzw_sem_timer.stop();
     }
 }

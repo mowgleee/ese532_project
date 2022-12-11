@@ -71,9 +71,11 @@ class lzw_request
     // void init();
     void set_args_1(uint32_t num_chunks_1, uint32_t);
     void set_args_2(uint32_t num_chunks_2, uint32_t);
-    void run(uint32_t);
+    void run_1(uint32_t);
+    void run_2(uint32_t);
     void finish();
-    void wait(uint32_t);
+    void wait_1(uint32_t);
+    void wait_2(uint32_t);
 
     unsigned char* input_to_fpga_1[NUM_PACKETS/2];
     unsigned char* output_from_fpga_1[NUM_PACKETS/2];
